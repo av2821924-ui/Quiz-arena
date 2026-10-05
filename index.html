@@ -1,0 +1,1881 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>QuizArena - Live Multiplayer Trivia Showdown</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif']
+      },
+      colors: {
+        arena: {
+          dark: '#0a0d1a',
+          card: '#12172d',
+          border: '#1e264a',
+          accent: '#6366f1',
+          neon: '#a855f7',
+          gold: '#f59e0b',
+          emerald: '#10b981',
+          rose: '#f43f5e'
+        }
+      }
+    }
+  }
+};
+</script>
+<style>
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:#0a0d1a}
+  ::-webkit-scrollbar-thumb{background:#252e56;border-radius:999px}
+  .glassmorphism{background:rgba(18,23,45,.85);backdrop-filter:blur(12px)}
+  .option-btn{transition:all .15s ease}
+  .option-btn:hover:not(:disabled){transform:translateY(-2px)}
+  .option-btn:active:not(:disabled){transform:scale(.99)}
+  .shake{animation:shakeAnim .4s ease-in-out}
+  @keyframes shakeAnim{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  .pop-in{animation:popIn .35s cubic-bezier(.2,.8,.3,1.2)}
+  @keyframes popIn{0%{opacity:0;transform:translateY(14px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  .fade-up{animation:fadeUp .45s ease}
+  @keyframes fadeUp{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:translateY(0)}}
+  .qr-frame{background:#fff;padding:12px;border-radius:18px;line-height:0;box-shadow:0 0 0 1px rgba(255,255,255,.15),0 20px 45px -20px rgba(217,70,239,.9)}
+  .qr-frame img,.qr-frame canvas{display:block;border-radius:8px;margin:auto}
+  .scan-line{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#d946ef,transparent);animation:scanMove 2.4s ease-in-out infinite}
+  @keyframes scanMove{0%{top:6%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:92%;opacity:0}}
+  .code-box{letter-spacing:.35em;font-family:'Space Grotesk',monospace}
+  .ring-pulse{animation:ringPulse 1.8s ease-out infinite}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}70%{box-shadow:0 0 0 12px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+  .timer-bar{transition:width 1s linear}
+  .opt-correct{background:linear-gradient(135deg,#059669,#10b981)!important;border-color:#10b981!important;color:#fff!important;box-shadow:0 0 25px -5px rgba(16,185,129,.6)}
+  .opt-wrong{background:linear-gradient(135deg,#be123c,#f43f5e)!important;border-color:#f43f5e!important;color:#fff!important}
+  .opt-dim{opacity:.35;filter:grayscale(1)}
+  .neon-glow{box-shadow:0 0 40px -18px rgba(217,70,239,.9)}
+  #qr-reader video{border-radius:12px!important}
+  .confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:70}
+  .float-slow{animation:floaty 5s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  .glow-text{text-shadow:0 0 24px rgba(129,140,248,.55)}
+</style>
+</head>
+<body class="bg-arena-dark text-slate-100 min-h-screen font-sans flex flex-col justify-between overflow-x-hidden">
+
+<div class="fixed inset-0 pointer-events-none opacity-20 z-0 bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:24px_24px]"></div>
+
+<header class="relative z-20 border-b border-arena-border glassmorphism px-4 lg:px-8 py-3 flex items-center justify-between gap-3">
+  <div class="flex items-center gap-3 cursor-pointer shrink-0" onclick="app.showHome()">
+    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+      <i class="fa-solid fa-bolt-lightning text-white text-lg"></i>
+    </div>
+    <div>
+      <h1 class="text-xl font-display font-black tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent leading-none">QuizArena</h1>
+      <p class="text-[10px] uppercase font-bold tracking-widest text-indigo-400 mt-0.5">Live Trivia Esports</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <div id="player-profile-badge" class="hidden sm:flex items-center gap-2 bg-arena-card border border-arena-border px-3 py-1.5 rounded-full text-xs font-semibold">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span id="nav-player-name">Player</span>
+      <span class="text-arena-gold font-bold flex items-center gap-1 ml-1"><i class="fa-solid fa-coins text-xs"></i><span id="nav-player-coins">1,450</span></span>
+    </div>
+    <button id="nav-room-btn" onclick="app.navRoomBtn()" class="px-3 py-1.5 rounded-lg bg-fuchsia-600/20 hover:bg-fuchsia-600/30 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold transition flex items-center gap-1.5">
+      <i class="fa-solid fa-qrcode text-xs"></i><span id="nav-room-label">Join Room</span>
+    </button>
+    <button onclick="soundManager.toggleSound()" class="w-9 h-9 rounded-full bg-arena-card border border-arena-border hover:border-indigo-500 text-slate-300 flex items-center justify-center transition" aria-label="Toggle sound">
+      <i id="sound-icon" class="fa-solid fa-volume-high text-sm"></i>
+    </button>
+    <button onclick="app.openBank()" class="hidden md:flex px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold transition items-center gap-1.5">
+      <i class="fa-solid fa-database text-xs"></i><span>Bank (<span id="total-q-count">0</span>)</span>
+    </button>
+  </div>
+</header>
+
+<main id="app-container" class="relative z-10 flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6 flex flex-col justify-center"></main>
+
+<footer class="relative z-10 border-t border-arena-border py-3 text-center text-xs text-slate-500 px-4">
+  QuizArena Multiplayer Engine &copy; 2026 &bull; QR Room Join &bull; Real-time Rivals &bull; Technical (BCA/CST/BTech) + 9 Arenas
+</footer>
+
+<!-- SCANNER MODAL -->
+<div id="scanner-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-arena-card border border-arena-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div class="px-5 py-4 border-b border-arena-border flex items-center justify-between">
+      <div>
+        <h2 class="font-bold text-white"><i class="fa-solid fa-camera text-fuchsia-400 mr-2"></i>Scan Room QR</h2>
+        <p class="text-xs text-slate-400">Point camera at host QR code</p>
+      </div>
+      <button onclick="app.closeScanner()" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-4">
+      <div id="qr-reader" class="rounded-xl overflow-hidden bg-black min-h-[280px]"></div>
+      <p id="scan-status" class="text-xs text-slate-400 text-center mt-3">Starting camera...</p>
+      <div class="mt-3 flex gap-2">
+        <input id="manual-scan-input" placeholder="Or paste join link / code" class="flex-1 bg-arena-dark border border-arena-border rounded-xl px-3 py-2.5 text-sm focus:border-fuchsia-500 focus:outline-none uppercase">
+        <button onclick="app.manualScanParse()" class="px-4 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl text-sm font-bold">Join</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BANK MODAL -->
+<div id="bank-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-arena-card border border-arena-border rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="px-5 py-4 border-b border-arena-border flex items-center justify-between">
+      <h2 class="font-bold text-white"><i class="fa-solid fa-database text-indigo-400 mr-2"></i>Question Bank Explorer</h2>
+      <button onclick="app.closeBank()" class="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="bank-chips" class="p-3 border-b border-arena-border flex gap-2 overflow-x-auto"></div>
+    <div id="bank-list" class="p-5 overflow-y-auto flex-1 space-y-3"></div>
+  </div>
+</div>
+
+<div id="toast-container" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none w-[92%] max-w-sm"></div>
+
+<script>
+/* ============================================================
+   SAFE STORAGE
+   ============================================================ */
+const SafeStore = {
+  mem: {},
+  get(k){
+    try{
+      const v = localStorage.getItem(k);
+      return v === null ? (this.mem[k] !== undefined ? this.mem[k] : null) : v;
+    }catch(e){ return this.mem[k] !== undefined ? this.mem[k] : null; }
+  },
+  set(k, v){
+    try{ localStorage.setItem(k, v); }catch(e){}
+    this.mem[k] = v;
+  },
+  remove(k){
+    try{ localStorage.removeItem(k); }catch(e){}
+    delete this.mem[k];
+  }
+};
+
+/* ============================================================
+   QUESTION BANK — 10 CATEGORIES (incl. BCA / CST / BTech)
+   ============================================================ */
+const QUESTION_BANK = {
+  technical: [
+    {id:"t1",category:"Technical",sub:"DBMS",question:"Which SQL constraint ensures all values in a column are completely distinct?",options:["UNIQUE","CHECK","INDEX","FOREIGN KEY"],answer:0,explanation:"UNIQUE ensures all values differ."},
+    {id:"t2",category:"Technical",sub:"Networking",question:"Which OSI layer handles IP addressing and routing?",options:["Data Link","Transport","Network Layer","Session"],answer:2,explanation:"Layer 3 (Network) handles IP + routing."},
+    {id:"t3",category:"Technical",sub:"Programming",question:"Which Python function returns index and value when iterating?",options:["zip()","enumerate()","map()","filter()"],answer:1,explanation:"enumerate() yields (index, item)."},
+    {id:"t4",category:"Technical",sub:"AI & ML",question:"Which activation is most used in deep hidden layers?",options:["Sigmoid","Softmax","ReLU","Tanh"],answer:2,explanation:"ReLU avoids vanishing gradients."},
+    {id:"t5",category:"Technical",sub:"Architecture",question:"What is Cache Coherence in multicore systems?",options:["Syncing shared data across local caches","Compressing SSD swap","Allocating registers","Overclocking bus"],answer:0,explanation:"Keeps local caches consistent."},
+    {id:"t6",category:"Technical",sub:"Algorithms",question:"Worst-case time of unoptimized Quicksort?",options:["O(log n)","O(n log n)","O(n)","O(n²)"],answer:3,explanation:"Bad pivots degrade to O(n²)."},
+    {id:"t7",category:"Technical",sub:"Networking",question:"Which protocol uses UDP port 53 for domain names?",options:["DHCP","DNS","SNMP","BGP"],answer:1,explanation:"DNS uses UDP 53."},
+    {id:"t8",category:"Technical",sub:"DBMS",question:"What does 'I' stand for in ACID?",options:["Integrity","Isolation","Immutability","Indexing"],answer:1,explanation:"Atomicity, Consistency, Isolation, Durability."},
+    {id:"bca1",category:"Technical",sub:"BCA – Fundamentals",question:"Windows/Linux OS is classified as?",options:["Application Software","System Software","Utility Software","Firmware"],answer:1,explanation:"OS is system software."},
+    {id:"bca2",category:"Technical",sub:"BCA – Memory",question:"Which memory is volatile?",options:["ROM","HDD","RAM","Flash Drive"],answer:2,explanation:"RAM loses data on power off."},
+    {id:"bca3",category:"Technical",sub:"BCA – Web",question:"Which HTML tag creates a hyperlink?",options:["<link>","<a>","<href>","<nav>"],answer:1,explanation:"<a href> creates links."},
+    {id:"bca4",category:"Technical",sub:"BCA – Web",question:"Which styles the visual presentation of web pages?",options:["HTML","CSS","SQL","XML"],answer:1,explanation:"CSS controls styling."},
+    {id:"bca5",category:"Technical",sub:"BCA – SE",question:"Which SDLC model is strict linear sequential?",options:["Agile","Waterfall","Spiral","RAD"],answer:1,explanation:"Waterfall is sequential."},
+    {id:"bca6",category:"Technical",sub:"BCA – DBMS",question:"Which normal form removes transitive dependency?",options:["1NF","2NF","3NF","BCNF"],answer:2,explanation:"3NF removes transitive dependencies."},
+    {id:"cst1",category:"Technical",sub:"CST – DS",question:"Which follows Last-In-First-Out?",options:["Queue","Stack","Linked List","Heap"],answer:1,explanation:"Stack is LIFO."},
+    {id:"cst2",category:"Technical",sub:"CST – Algorithms",question:"Time complexity of Binary Search?",options:["O(n)","O(n log n)","O(log n)","O(1)"],answer:2,explanation:"Halving gives O(log n)."},
+    {id:"cst3",category:"Technical",sub:"CST – DS",question:"Which BST traversal gives sorted order?",options:["Pre-order","In-order","Post-order","Level-order"],answer:1,explanation:"In-order = sorted."},
+    {id:"cst4",category:"Technical",sub:"CST – Graphs",question:"Edges in a spanning tree of n vertices?",options:["n","n - 1","n + 1","n(n-1)/2"],answer:1,explanation:"A tree has n-1 edges."},
+    {id:"cst5",category:"Technical",sub:"CST – Sorting",question:"Stable O(n log n) worst-case sort?",options:["Quick Sort","Heap Sort","Merge Sort","Selection Sort"],answer:2,explanation:"Merge Sort is stable O(n log n)."},
+    {id:"bt1",category:"Technical",sub:"BTech – Architecture",question:"Which register holds the next instruction address?",options:["Accumulator","Program Counter","MBR","Stack Pointer"],answer:1,explanation:"PC holds the next address."},
+    {id:"bt2",category:"Technical",sub:"BTech – Security",question:"Which is asymmetric cryptography?",options:["AES","DES","RSA","Blowfish"],answer:2,explanation:"RSA is public-key cryptography."},
+    {id:"bt3",category:"Technical",sub:"BTech – Networking",question:"Which maps IP to MAC on a LAN?",options:["ARP","RARP","ICMP","DHCP"],answer:0,explanation:"ARP resolves MAC addresses."},
+    {id:"bt4",category:"Technical",sub:"BTech – OOP",question:"Wrapping data + methods into one unit?",options:["Inheritance","Polymorphism","Encapsulation","Abstraction"],answer:2,explanation:"Encapsulation bundles data + methods."},
+    {id:"bt5",category:"Technical",sub:"BTech – Architecture",question:"Which CPU part does arithmetic/logic?",options:["Control Unit","ALU","Cache","Bus Unit"],answer:1,explanation:"ALU executes operations."}
+  ],
+  gk: [
+    {id:"gk1",category:"General Knowledge",sub:"India GK",question:"Which state is the 'Spice Garden of India'?",options:["Kerala","Karnataka","Tamil Nadu","Assam"],answer:0,explanation:"Kerala is famous for pepper and spices."},
+    {id:"gk2",category:"General Knowledge",sub:"World GK",question:"Where is the International Court of Justice?",options:["Geneva","Brussels","The Hague","Vienna"],answer:2,explanation:"Peace Palace, The Hague."},
+    {id:"gk3",category:"General Knowledge",sub:"India GK",question:"First Indian woman to win an Olympic medal?",options:["P.T. Usha","Karnam Malleswari","Mary Kom","Saina Nehwal"],answer:1,explanation:"Malleswari, Sydney 2000 bronze."},
+    {id:"gk4",category:"General Knowledge",sub:"World GK",question:"Smallest sovereign state in the world?",options:["Monaco","San Marino","Vatican City","Liechtenstein"],answer:2,explanation:"Vatican City ≈ 0.49 km²."},
+    {id:"gk5",category:"General Knowledge",sub:"India GK",question:"Largest drainage basin river in India?",options:["Godavari","Ganga","Brahmaputra","Indus"],answer:1,explanation:"The Ganga basin is the largest."},
+    {id:"gk6",category:"General Knowledge",sub:"World GK",question:"Which award is called the 'Nobel Prize of Architecture'?",options:["Pritzker Prize","Turing Award","Abel Prize","Booker Prize"],answer:0,explanation:"The Pritzker Prize honours architects."},
+    {id:"gk7",category:"General Knowledge",sub:"World GK",question:"Currency of South Africa?",options:["Dinar","Rand","Real","Ringgit"],answer:1,explanation:"The South African Rand."},
+    {id:"gk8",category:"General Knowledge",sub:"India GK",question:"Satish Dhawan Space Centre is on which island?",options:["Wheeler","Sriharikota","Pamban","Elephanta"],answer:1,explanation:"Sriharikota, Andhra Pradesh."},
+    {id:"gk9",category:"General Knowledge",sub:"India GK",question:"Which is the national aquatic animal of India?",options:["Gharial","Gangetic Dolphin","Olive Ridley Turtle","Blue Whale"],answer:1,explanation:"The Gangetic Dolphin."},
+    {id:"gk10",category:"General Knowledge",sub:"World GK",question:"Which organisation has 193 member states?",options:["WHO","UNESCO","United Nations","NATO"],answer:2,explanation:"The UN has 193 member states."}
+  ],
+  movies: [
+    {id:"m1",category:"Movies",sub:"Hollywood",question:"Nolan film about dreams within dreams?",options:["Interstellar","Tenet","Inception","The Prestige"],answer:2,explanation:"Inception (2010)."},
+    {id:"m2",category:"Movies",sub:"Bollywood",question:"Oscar-nominated film by Ashutosh Gowariker (2002)?",options:["Lagaan","Devdas","Swades","Taare Zameen Par"],answer:0,explanation:"Lagaan was nominated for Best Foreign Language Film."},
+    {id:"m3",category:"Movies",sub:"Web Series",question:"The parallel dimension in Stranger Things is called?",options:["The Void","The Upside Down","The Nether","Dark Realm"],answer:1,explanation:"The Upside Down."},
+    {id:"m4",category:"Movies",sub:"Hollywood",question:"Highest-grossing film of all time (unadjusted)?",options:["Avengers: Endgame","Titanic","Avatar","Star Wars: TFA"],answer:2,explanation:"Avatar, over $2.9 billion."},
+    {id:"m5",category:"Movies",sub:"Web Series",question:"Series featuring Westeros and Essos?",options:["The Witcher","Game of Thrones","Shadow & Bone","Wheel of Time"],answer:1,explanation:"Game of Thrones."},
+    {id:"m6",category:"Movies",sub:"Bollywood",question:"'Kattappa ne Baahubali ko kyun maara?' belongs to which franchise?",options:["KGF","Baahubali","Pushpa","RRR"],answer:1,explanation:"The Baahubali cliffhanger."},
+    {id:"m7",category:"Movies",sub:"Hollywood",question:"Actor who played Oppenheimer and the Peaky Blinders lead?",options:["Christian Bale","Cillian Murphy","Joaquin Phoenix","Gary Oldman"],answer:1,explanation:"Cillian Murphy."},
+    {id:"m8",category:"Movies",sub:"Web Series",question:"Walter White's alias in Breaking Bad?",options:["Ozymandias","Heisenberg","Scarface","Gus"],answer:1,explanation:"Heisenberg."},
+    {id:"m9",category:"Movies",sub:"Bollywood",question:"Directed '3 Idiots' and 'PK'?",options:["Rajkumar Hirani","Zoya Akhtar","Anurag Kashyap","Imtiaz Ali"],answer:0,explanation:"Rajkumar Hirani."},
+    {id:"m10",category:"Movies",sub:"Hollywood",question:"Which film won Best Picture at the 2020 Oscars?",options:["1917","Joker","Parasite","Green Book"],answer:2,explanation:"Parasite made history."}
+  ],
+  music: [
+    {id:"mu1",category:"Songs & Music",sub:"World",question:"Band behind 'Bohemian Rhapsody'?",options:["The Beatles","Led Zeppelin","Queen","Pink Floyd"],answer:2,explanation:"Queen, 1975."},
+    {id:"mu2",category:"Songs & Music",sub:"Bollywood",question:"Who won 2 Oscars for 'Jai Ho' and the Slumdog score?",options:["A.R. Rahman","Pritam","R.D. Burman","Ilaiyaraaja"],answer:0,explanation:"A.R. Rahman, 2009."},
+    {id:"mu3",category:"Songs & Music",sub:"Albums",question:"Best-selling album ever (Michael Jackson, 1982)?",options:["Bad","Off the Wall","Dangerous","Thriller"],answer:3,explanation:"Thriller, 70M+ copies."},
+    {id:"mu4",category:"Songs & Music",sub:"Singers",question:"First 4-time Album of the Year Grammy winner?",options:["Beyoncé","Taylor Swift","Adele","Billie Eilish"],answer:1,explanation:"Taylor Swift."},
+    {id:"mu5",category:"Songs & Music",sub:"Singers",question:"Known as the 'Nightingale of India'?",options:["Asha Bhosle","Lata Mangeshkar","K.S. Chithra","Shreya Ghoshal"],answer:1,explanation:"Lata Mangeshkar."},
+    {id:"mu6",category:"Songs & Music",sub:"Instruments",question:"Instrument of Pt. Ravi Shankar?",options:["Sarod","Sitar","Santoor","Veena"],answer:1,explanation:"The Sitar maestro."},
+    {id:"mu7",category:"Songs & Music",sub:"World",question:"'Despacito' featured which rapper?",options:["Bad Bunny","Daddy Yankee","J Balvin","Maluma"],answer:1,explanation:"Luis Fonsi ft. Daddy Yankee."},
+    {id:"mu8",category:"Songs & Music",sub:"Classical",question:"Beethoven composed his 9th Symphony while...?",options:["Blind","Severely deaf","Paralysed hands","Mute"],answer:1,explanation:"Nearly deaf by 1824."},
+    {id:"mu9",category:"Songs & Music",sub:"Bollywood",question:"Singer of 'Channa Mereya'?",options:["Arijit Singh","Sonu Nigam","Atif Aslam","Rahat Fateh Ali Khan"],answer:0,explanation:"Arijit Singh."},
+    {id:"mu10",category:"Songs & Music",sub:"World",question:"'Shape of You' is by?",options:["Ed Sheeran","Sam Smith","Shawn Mendes","Charlie Puth"],answer:0,explanation:"Ed Sheeran, 2017."}
+  ],
+  world: [
+    {id:"w1",category:"World",sub:"Capitals",question:"Capital of Australia?",options:["Sydney","Melbourne","Canberra","Brisbane"],answer:2,explanation:"Canberra, a planned capital."},
+    {id:"w2",category:"World",sub:"Landmarks",question:"Petra is located in?",options:["Jordan","Egypt","Lebanon","Oman"],answer:0,explanation:"Southern Jordan."},
+    {id:"w3",category:"World",sub:"Geography",question:"Deepest oceanic trench?",options:["Java Trench","Mariana Trench","Puerto Rico Trench","Sunda Trench"],answer:1,explanation:"Mariana ≈ 11,000 m."},
+    {id:"w4",category:"World",sub:"Countries",question:"Country spanning 11 time zones?",options:["Canada","China","Russia","Kazakhstan"],answer:2,explanation:"Russia, the largest country."},
+    {id:"w5",category:"World",sub:"Geography",question:"Mosi-oa-Tunya is the local name of which waterfall?",options:["Niagara","Angel Falls","Victoria Falls","Iguazu"],answer:2,explanation:"Victoria Falls."},
+    {id:"w6",category:"World",sub:"Capitals",question:"Capital of Canada?",options:["Toronto","Montreal","Vancouver","Ottawa"],answer:3,explanation:"Ottawa."},
+    {id:"w7",category:"World",sub:"Geography",question:"Largest hot desert in the world?",options:["Gobi","Kalahari","Sahara","Arabian"],answer:2,explanation:"Sahara, 9.2M km²."},
+    {id:"w8",category:"World",sub:"Landmarks",question:"Machu Picchu is in?",options:["Chile","Peru","Bolivia","Ecuador"],answer:1,explanation:"Andes mountains, Peru."},
+    {id:"w9",category:"World",sub:"Countries",question:"Which country has the most natural lakes?",options:["USA","Canada","Brazil","Russia"],answer:1,explanation:"Canada holds ~60% of the world's lakes."},
+    {id:"w10",category:"World",sub:"Capitals",question:"Capital of Japan?",options:["Osaka","Kyoto","Tokyo","Nagoya"],answer:2,explanation:"Tokyo."}
+  ],
+  math: [
+    {id:"mt1",category:"Mathematics",sub:"Arithmetic",question:"15% of 240 + 25% of 160 = ?",options:["76","72","68","84"],answer:0,explanation:"36 + 40 = 76."},
+    {id:"mt2",category:"Mathematics",sub:"Algebra",question:"Solve: 3x - 7 = 2x + 14",options:["7","14","21","28"],answer:2,explanation:"x = 21."},
+    {id:"mt3",category:"Mathematics",sub:"Logic",question:"Next in series: 2, 3, 5, 8, 13, 21, ?",options:["31","34","36","42"],answer:1,explanation:"13 + 21 = 34."},
+    {id:"mt4",category:"Mathematics",sub:"Geometry",question:"Sum of interior angles of a hexagon?",options:["540°","720°","360°","900°"],answer:1,explanation:"(6-2) × 180 = 720°."},
+    {id:"mt5",category:"Mathematics",sub:"Probability",question:"P(sum = 7) with two dice?",options:["1/6","1/12","5/36","7/36"],answer:0,explanation:"6/36 = 1/6."},
+    {id:"mt6",category:"Mathematics",sub:"Puzzles",question:"5 machines take 5 min for 5 widgets. 100 machines for 100 widgets?",options:["100 min","50 min","5 min","20 min"],answer:2,explanation:"Parallel work: still 5 min."},
+    {id:"mt7",category:"Mathematics",sub:"Arithmetic",question:"Which is the only even prime number?",options:["0","2","4","None"],answer:1,explanation:"2 is prime and even."},
+    {id:"mt8",category:"Mathematics",sub:"Algebra",question:"If a² - b² = 48 and a - b = 4, then a + b = ?",options:["8","12","16","24"],answer:1,explanation:"48 / 4 = 12."},
+    {id:"mt9",category:"Mathematics",sub:"Arithmetic",question:"What is 25% of 25% of 400?",options:["25","20","30","15"],answer:0,explanation:"0.25 × 0.25 × 400 = 25."},
+    {id:"mt10",category:"Mathematics",sub:"Logic",question:"If today is Monday, what day is it after 100 days?",options:["Wednesday","Thursday","Tuesday","Friday"],answer:1,explanation:"100 mod 7 = 2, so Wednesday... 100 days → Thursday."}
+  ],
+  science: [
+    {id:"s1",category:"Science",sub:"Biology",question:"Powerhouse of the cell?",options:["Ribosome","Nucleus","Mitochondria","Golgi body"],answer:2,explanation:"Mitochondria produce ATP."},
+    {id:"s2",category:"Science",sub:"Chemistry",question:"Chemical symbol for Gold (Aurum)?",options:["Ag","Au","Gd","Pt"],answer:1,explanation:"Au = Aurum."},
+    {id:"s3",category:"Science",sub:"Physics",question:"Speed of light in vacuum?",options:["300,000 km/s","150,000 km/s","30,000 km/s","1,000,000 km/s"],answer:0,explanation:"≈ 299,792 km/s."},
+    {id:"s4",category:"Science",sub:"Space",question:"2021 infrared successor to Hubble?",options:["Kepler","James Webb","Chandra","Spitzer"],answer:1,explanation:"The James Webb Space Telescope."},
+    {id:"s5",category:"Science",sub:"Physics",question:"Protons and neutrons are made of?",options:["Leptons","Quarks","Photons","Neutrinos"],answer:1,explanation:"Up and Down quarks."},
+    {id:"s6",category:"Science",sub:"Chemistry",question:"~78% of the atmosphere is?",options:["Oxygen","Carbon dioxide","Nitrogen","Argon"],answer:2,explanation:"Nitrogen (N₂)."},
+    {id:"s7",category:"Science",sub:"Biology",question:"Universal red-cell donor blood group?",options:["AB+","O Negative","O+","A-"],answer:1,explanation:"O- lacks antigens."},
+    {id:"s8",category:"Science",sub:"Space",question:"Closest spiral galaxy to the Milky Way?",options:["Triangulum","Andromeda (M31)","Whirlpool","Sombrero"],answer:1,explanation:"Andromeda, 2.5M light years."},
+    {id:"s9",category:"Science",sub:"Physics",question:"SI unit of force?",options:["Joule","Newton","Pascal","Watt"],answer:1,explanation:"The Newton (N)."},
+    {id:"s10",category:"Science",sub:"Chemistry",question:"pH value of a neutral solution?",options:["0","7","14","1"],answer:1,explanation:"pH 7 is neutral."}
+  ],
+  sports: [
+    {id:"sp1",category:"Sports",sub:"Cricket",question:"Who has scored 100 international centuries?",options:["Virat Kohli","Ricky Ponting","Sachin Tendulkar","Brian Lara"],answer:2,explanation:"Sachin: 51 Test + 49 ODI."},
+    {id:"sp2",category:"Sports",sub:"Football",question:"Who won the FIFA World Cup 2022 in Qatar?",options:["Brazil","Argentina","Croatia","Germany"],answer:1,explanation:"Argentina beat France."},
+    {id:"sp3",category:"Sports",sub:"Olympics",question:"Most decorated Olympian (23 gold medals)?",options:["Usain Bolt","Michael Phelps","Carl Lewis","Mark Spitz"],answer:1,explanation:"Michael Phelps."},
+    {id:"sp4",category:"Sports",sub:"Tennis",question:"Wimbledon is played on which surface?",options:["Clay","Hard","Grass","Carpet"],answer:2,explanation:"Ryegrass."},
+    {id:"sp5",category:"Sports",sub:"Cricket",question:"Who won the inaugural T20 World Cup 2007?",options:["Pakistan","India","Australia","West Indies"],answer:1,explanation:"India under MS Dhoni."},
+    {id:"sp6",category:"Sports",sub:"Athletics",question:"Usain Bolt's 100m world record?",options:["9.58s","9.63s","9.69s","9.72s"],answer:0,explanation:"9.58s, Berlin 2009."},
+    {id:"sp7",category:"Sports",sub:"Basketball",question:"Which superstar is called 'Air Jordan'?",options:["LeBron James","Kobe Bryant","Michael Jordan","Shaquille O'Neal"],answer:2,explanation:"Michael Jordan."},
+    {id:"sp8",category:"Sports",sub:"Olympics",question:"The first modern Olympics in Athens were held in?",options:["1896","1900","1924","1936"],answer:0,explanation:"1896 revival."},
+    {id:"sp9",category:"Sports",sub:"Football",question:"How many players does one football team have on pitch?",options:["9","10","11","12"],answer:2,explanation:"11 players per side."},
+    {id:"sp10",category:"Sports",sub:"Cricket",question:"What is the maximum score with one legal delivery?",options:["4","6","5","7"],answer:3,explanation:"6 runs + 1 penalty = 7."}
+  ],
+  history: [
+    {id:"h1",category:"History",sub:"Indian",question:"In which year was the Battle of Plassey fought?",options:["1757","1764","1857","1707"],answer:0,explanation:"23 June 1757."},
+    {id:"h2",category:"History",sub:"World",question:"First Emperor of unified China?",options:["Han Wudi","Qin Shi Huang","Kublai Khan","Sun Yat-sen"],answer:1,explanation:"Qin Shi Huang, 221 BC."},
+    {id:"h3",category:"History",sub:"Indian",question:"Who commissioned the Taj Mahal?",options:["Akbar","Jahangir","Shah Jahan","Babur"],answer:2,explanation:"Shah Jahan for Mumtaz Mahal."},
+    {id:"h4",category:"History",sub:"World",question:"Fall of the Berlin Wall?",options:["1985","1989","1991","1993"],answer:1,explanation:"9 November 1989."},
+    {id:"h5",category:"History",sub:"Indian",question:"Harappa and Mohenjo-daro belonged to which civilisation?",options:["Mesopotamian","Indus Valley","Minoan","Vedic"],answer:1,explanation:"The Indus Valley (Harappan) civilisation."},
+    {id:"h6",category:"History",sub:"World",question:"Who crossed the Rubicon in 49 BC?",options:["Julius Caesar","Aurelius","Nero","Mark Antony"],answer:0,explanation:"Julius Caesar."},
+    {id:"h7",category:"History",sub:"Indian",question:"The Salt March ended at?",options:["Porbandar","Dandi","Surat","Bardoli"],answer:1,explanation:"Dandi, 1930."},
+    {id:"h8",category:"History",sub:"World",question:"In which year did the Chernobyl disaster occur?",options:["1979","1986","1990","1984"],answer:1,explanation:"26 April 1986."},
+    {id:"h9",category:"History",sub:"Indian",question:"Who was the first President of India?",options:["Nehru","Dr. Rajendra Prasad","S. Radhakrishnan","Patel"],answer:1,explanation:"Dr. Rajendra Prasad."},
+    {id:"h10",category:"History",sub:"World",question:"World War II ended in?",options:["1943","1944","1945","1946"],answer:2,explanation:"1945."}
+  ]
+};
+
+const CATEGORIES = [
+  {id:"technical",name:"1. Technical",icon:"fa-code",color:"from-blue-600 to-cyan-500",desc:"Programming, AI, DBMS, Networks + BCA / CST / BTech"},
+  {id:"gk",name:"2. General Knowledge",icon:"fa-earth-americas",color:"from-emerald-600 to-teal-500",desc:"India & World GK"},
+  {id:"movies",name:"3. Movies",icon:"fa-film",color:"from-rose-600 to-red-500",desc:"Bollywood, Hollywood & Web Series"},
+  {id:"music",name:"4. Songs & Music",icon:"fa-headphones",color:"from-pink-600 to-purple-500",desc:"Singers, albums, tracks & maestros"},
+  {id:"world",name:"5. World",icon:"fa-globe",color:"from-amber-500 to-orange-500",desc:"Countries, capitals, landmarks"},
+  {id:"math",name:"6. Mathematics",icon:"fa-calculator",color:"from-violet-600 to-indigo-600",desc:"Arithmetic, algebra, logic & puzzles"},
+  {id:"science",name:"7. Science",icon:"fa-flask-vial",color:"from-teal-500 to-emerald-600",desc:"Physics, chemistry, biology & space"},
+  {id:"sports",name:"8. Sports",icon:"fa-trophy",color:"from-yellow-500 to-amber-600",desc:"Cricket, football, Olympics"},
+  {id:"history",name:"9. History",icon:"fa-landmark-dome",color:"from-stone-600 to-amber-800",desc:"Indian & World history"},
+  {id:"mixed",name:"10. Mixed Quiz",icon:"fa-shuffle",color:"from-fuchsia-600 to-rose-600",desc:"Random mashup of all arenas"}
+];
+
+const BOT_DEFS = [
+  {name:"Aarav Sharma",avatar:"👨‍💻",skill:.85},
+  {name:"Maya Patel",avatar:"🎯",skill:.88},
+  {name:"Elena Rostova",avatar:"👩‍🚀",skill:.80},
+  {name:"Kaito Tanaka",avatar:"⚡",skill:.76},
+  {name:"Sofia Chen",avatar:"🚀",skill:.83},
+  {name:"Marcus Brody",avatar:"🧠",skill:.74}
+];
+
+const AVATARS = ["😎","🦊","🐼","🦁","🐸","🤖","👽","🐯","🦉","🐙","🦄","🔥"];
+
+/* ============================================================
+   SOUND (Web Audio API)
+   ============================================================ */
+class SoundManager {
+  constructor(){ this.ctx = null; this.enabled = true; }
+  init(){
+    if(!this.ctx){
+      const A = window.AudioContext || window.webkitAudioContext;
+      if(A) this.ctx = new A();
+    }
+    if(this.ctx && this.ctx.state === 'suspended'){ this.ctx.resume().catch(function(){}); }
+  }
+  toggleSound(){
+    this.enabled = !this.enabled;
+    const i = document.getElementById('sound-icon');
+    if(!i) return;
+    if(this.enabled){ i.className = 'fa-solid fa-volume-high text-sm'; this.playClick(); }
+    else { i.className = 'fa-solid fa-volume-xmark text-sm text-slate-500'; }
+  }
+  tone(freq, type, dur, gain){
+    if(!this.enabled) return;
+    this.init();
+    if(!this.ctx) return;
+    type = type || 'sine'; dur = dur || .15; gain = gain === undefined ? .12 : gain;
+    try{
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      g.gain.setValueAtTime(gain, this.ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, this.ctx.currentTime + dur);
+      o.connect(g); g.connect(this.ctx.destination);
+      o.start(); o.stop(this.ctx.currentTime + dur);
+    }catch(e){}
+  }
+  playClick(){ this.tone(600,'sine',.05,.08); }
+  playCorrect(){
+    const self = this;
+    [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){ self.tone(f,'triangle',.25,.12); }, i*70); });
+  }
+  playWrong(){
+    const self = this;
+    [220,196,174].forEach(function(f,i){ setTimeout(function(){ self.tone(f,'sawtooth',.2,.09); }, i*90); });
+  }
+  playTick(){ this.tone(900,'square',.03,.025); }
+  playJoin(){
+    const self = this;
+    [660,880,1100].forEach(function(f,i){ setTimeout(function(){ self.tone(f,'sine',.16,.12); }, i*80); });
+  }
+  playFanfare(){
+    const self = this;
+    [440,554,659,880,1100].forEach(function(n,i){ setTimeout(function(){ self.tone(n,'triangle',.3,.18); }, i*120); });
+  }
+}
+const soundManager = new SoundManager();
+
+/* ============================================================
+   ROOM MANAGER (cross-tab / cross-device link sync)
+   ============================================================ */
+const RoomManager = {
+  KEY: function(c){ return 'qa_room_' + c; },
+  ALPHA: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+  genCode(){
+    let s = '';
+    for(let i=0;i<6;i++) s += this.ALPHA[Math.floor(Math.random()*this.ALPHA.length)];
+    return s;
+  },
+  get(code){
+    if(!code) return null;
+    try{
+      const r = SafeStore.get(this.KEY(code.toUpperCase()));
+      if(!r) return null;
+      const o = JSON.parse(r);
+      return (o && o.code) ? o : null;
+    }catch(e){ return null; }
+  },
+  save(r){
+    SafeStore.set(this.KEY(r.code), JSON.stringify(r));
+    try{ if(app.bc) app.bc.postMessage({code:r.code, t:Date.now()}); }catch(e){}
+    return r;
+  },
+  remove(c){ SafeStore.remove(this.KEY(c.toUpperCase())); }
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function shuffle(a){
+  const x = a.slice();
+  for(let i=x.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = x[i]; x[i] = x[j]; x[j] = t;
+  }
+  return x;
+}
+function getQuestions(cat, n){
+  n = n || 10;
+  let pool = [];
+  if(cat === 'mixed'){
+    Object.keys(QUESTION_BANK).forEach(function(k){ pool = pool.concat(QUESTION_BANK[k]); });
+  }else{
+    pool = (QUESTION_BANK[cat] || []).slice();
+    if(pool.length < n){
+      let extra = [];
+      Object.keys(QUESTION_BANK).forEach(function(k){ extra = extra.concat(QUESTION_BANK[k]); });
+      extra = shuffle(extra.filter(function(q){ return pool.indexOf(q) === -1; }));
+      pool = pool.concat(extra.slice(0, n - pool.length));
+    }
+  }
+  return shuffle(pool).slice(0, n);
+}
+function esc(s){
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ============================================================
+   MAIN APP
+   ============================================================ */
+const app = {
+  clientId: 'p' + Math.random().toString(36).slice(2,10),
+  playerName: SafeStore.get('qa_player_name') || 'ArenaChampion',
+  coins: parseInt(SafeStore.get('qa_coins') || '1450', 10) || 1450,
+  playerAvatar: SafeStore.get('qa_avatar') || '😎',
+  gameMode: SafeStore.get('qa_mode') || 'multiplayer',
+  view: 'home',
+  room: null,
+  roomCode: null,
+  quiz: null,
+  html5Qr: null,
+  botSimInt: null,
+  bankFilter: 'technical',
+  bc: null,
+
+  init(){
+    try{
+      let id = null;
+      try{ id = sessionStorage.getItem('qa_client_id'); }catch(e){}
+      if(!id){
+        id = 'p' + Math.random().toString(36).slice(2,10);
+        try{ sessionStorage.setItem('qa_client_id', id); }catch(e){}
+      }
+      this.clientId = id;
+    }catch(e){}
+
+    try{
+      if('BroadcastChannel' in window){
+        const self = this;
+        this.bc = new BroadcastChannel('quizarena_rooms');
+        this.bc.onmessage = function(){ self.syncRoom(); };
+      }
+    }catch(e){}
+
+    const np = document.getElementById('nav-player-name');
+    if(np) np.innerText = this.playerName;
+    const nc = document.getElementById('nav-player-coins');
+    if(nc) nc.innerText = this.coins.toLocaleString();
+
+    let tot = 0;
+    Object.keys(QUESTION_BANK).forEach(function(k){ tot += QUESTION_BANK[k].length; });
+    const tq = document.getElementById('total-q-count');
+    if(tq) tq.innerText = tot;
+
+    const self = this;
+    window.addEventListener('storage', function(e){
+      if(e.key && e.key.indexOf('qa_room_') === 0) self.syncRoom();
+    });
+    setInterval(function(){ self.syncRoom(); }, 1500);
+
+    const dc = this.readCodeFromUrl();
+    this.showHome(dc || undefined);
+    document.addEventListener('pointerdown', function(){ soundManager.init(); }, {once:true});
+  },
+
+  saveProfile(){
+    SafeStore.set('qa_player_name', this.playerName);
+    SafeStore.set('qa_coins', String(this.coins));
+    SafeStore.set('qa_avatar', this.playerAvatar);
+    SafeStore.set('qa_mode', this.gameMode);
+  },
+
+  toast(m, t){
+    const c = document.getElementById('toast-container');
+    if(!c) return;
+    const el = document.createElement('div');
+    el.className = 'px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl border pointer-events-auto text-center ' +
+      (t === 'error' ? 'bg-rose-950/95 border-rose-500/50 text-rose-200'
+        : t === 'success' ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-200'
+        : 'bg-indigo-950/95 border-indigo-500/50 text-indigo-100');
+    el.innerText = m;
+    c.appendChild(el);
+    setTimeout(function(){
+      el.style.transition = 'opacity .35s';
+      el.style.opacity = '0';
+      setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 380);
+    }, 2400);
+  },
+
+  copyText(t, l){
+    const self = this;
+    const done = function(){ self.toast((l || 'Copied') + '!', 'success'); };
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(t).then(done).catch(function(){ self.fbCopy(t, done); });
+    }else{
+      this.fbCopy(t, done);
+    }
+  },
+  fbCopy(t, cb){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); cb();
+    }catch(e){ this.toast('Copy failed','error'); }
+  },
+
+  readCodeFromUrl(){
+    try{
+      const p = new URLSearchParams((location.search || '').replace(/^\?/,''));
+      let c = p.get('room') || p.get('join');
+      if(!c && location.hash){
+        const m = location.hash.match(/room=([A-Za-z0-9]+)/);
+        if(m) c = m[1];
+      }
+      if(c) return c.toUpperCase().slice(0,8);
+    }catch(e){}
+    return null;
+  },
+  buildJoinUrl(code){
+    let base = '';
+    try{
+      const h = location.href || '';
+      if(/^https?:\/\//i.test(h)) base = h.split('#')[0].split('?')[0];
+    }catch(e){}
+    if(!base) base = 'https://quizarena.live/';
+    return base + '?room=' + code;
+  },
+  parseCodeInput(s){
+    if(!s) return null;
+    s = String(s).trim();
+    const m = s.match(/room=([A-Za-z0-9]{4,8})/i);
+    if(m) return m[1].toUpperCase();
+    const c = s.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    return c.length >= 4 ? c : null;
+  },
+
+  updateNav(){
+    const l = document.getElementById('nav-room-label');
+    const b = document.getElementById('nav-room-btn');
+    if(!l || !b) return;
+    if(this.room){
+      l.innerText = this.room.code;
+      b.className = 'px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition flex items-center gap-1.5 ring-pulse';
+    }else{
+      l.innerText = 'Join Room';
+      b.className = 'px-3 py-1.5 rounded-lg bg-fuchsia-600/20 hover:bg-fuchsia-600/30 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold transition flex items-center gap-1.5';
+    }
+  },
+  navRoomBtn(){
+    soundManager.playClick();
+    if(this.room){ this.showLobby(); }
+    else{
+      this.showHome();
+      setTimeout(function(){
+        const el = document.getElementById('qr-room-panel');
+        if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+      },100);
+    }
+  },
+  setGameMode(m){
+    this.gameMode = m; this.saveProfile(); soundManager.playClick(); this.showHome();
+  },
+  updateName(v){
+    if(v && v.trim()){
+      this.playerName = v.trim().slice(0,18);
+      this.saveProfile();
+      const np = document.getElementById('nav-player-name');
+      if(np) np.innerText = this.playerName;
+      if(this.room){
+        const r = RoomManager.get(this.room.code);
+        if(r){
+          const me = r.players.filter(function(p){ return p.id === app.clientId; })[0];
+          if(me){ me.name = app.playerName; RoomManager.save(r); app.room = r; }
+        }
+      }
+    }
+  },
+  setAvatar(a){
+    this.playerAvatar = a; this.saveProfile(); soundManager.playClick();
+    if(this.view === 'home') this.showHome();
+    if(this.room){
+      const r = RoomManager.get(this.room.code);
+      if(r){
+        const me = r.players.filter(function(p){ return p.id === app.clientId; })[0];
+        if(me){ me.avatar = a; RoomManager.save(r); app.room = r; }
+      }
+    }
+  },
+
+  /* ============================================================
+     HOME
+     ============================================================ */
+  showHome(deepCode){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    clearInterval(this.botSimInt);
+    this.view = 'home';
+    this.updateNav();
+    const self = this;
+    const c = document.getElementById('app-container');
+
+    const inviteHTML = deepCode ? `
+      <div class="rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 flex flex-col sm:flex-row items-center gap-3 justify-between pop-in">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">📲</div>
+          <div>
+            <p class="font-bold text-emerald-200 text-sm">QR Invite detected: <span class="font-black tracking-widest">${esc(deepCode)}</span></p>
+            <p class="text-xs text-emerald-300/70">You scanned a QuizArena room QR. Tap join to enter the lobby!</p>
+          </div>
+        </div>
+        <button onclick="app.joinRoomByCode('${esc(deepCode)}')" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg">Join ${esc(deepCode)}</button>
+      </div>` : '';
+
+    c.innerHTML = `
+      <div class="space-y-6 max-w-5xl mx-auto w-full py-2 fade-up">
+        ${inviteHTML}
+
+        <div class="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-arena-border bg-gradient-to-br from-indigo-950/70 via-arena-card to-arena-dark">
+          <div class="absolute -right-12 -top-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl"></div>
+          <div class="relative flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="text-center md:text-left space-y-3 flex-1">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> QR Room Join &bull; Live PvP Arena
+              </div>
+              <h2 class="text-3xl sm:text-5xl font-display font-extrabold tracking-tight leading-tight">
+                Dominate The <span class="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent glow-text">Multiplayer Arena</span>
+              </h2>
+              <p class="text-slate-300 text-sm max-w-xl">
+                Create a room, show the QR code, let everyone scan to join instantly. Battle across <b>10 categories</b> —
+                Technical (BCA/CST/BTech), GK, Movies, Music, World, Math, Science, Sports, History &amp; Mixed.
+              </p>
+              <div class="flex flex-wrap gap-2 justify-center md:justify-start text-[11px] font-bold">
+                <span class="px-2.5 py-1 rounded-full bg-arena-dark border border-arena-border">⚡ 15s Blitz Rounds</span>
+                <span class="px-2.5 py-1 rounded-full bg-arena-dark border border-arena-border">🔥 Streak Bonus</span>
+                <span class="px-2.5 py-1 rounded-full bg-arena-dark border border-arena-border">📷 QR Join</span>
+                <span class="px-2.5 py-1 rounded-full bg-arena-dark border border-arena-border">🏆 Live Leaderboard</span>
+              </div>
+            </div>
+
+            <div class="bg-arena-dark/70 border border-arena-border p-4 rounded-2xl flex flex-col items-center gap-2 w-full sm:w-auto min-w-[250px]">
+              <div class="relative float-slow">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg">${this.playerAvatar}</div>
+                <span class="absolute -bottom-1 -right-1 bg-emerald-500 text-[10px] font-black px-1.5 py-0.5 rounded-full text-white border-2 border-arena-dark">LVL ${Math.floor(this.coins/60)+1}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="player-input" type="text" value="${esc(this.playerName)}" onchange="app.updateName(this.value)" class="bg-transparent border-b border-arena-border text-center font-bold text-sm focus:border-indigo-400 focus:outline-none px-2 py-0.5 max-w-[150px]">
+                <i class="fa-solid fa-pen text-[10px] text-slate-400"></i>
+              </div>
+              <div class="flex flex-wrap gap-1 justify-center max-w-[220px]">
+                ${AVATARS.map(function(a){
+                  return '<button onclick="app.setAvatar(\'' + a + '\')" class="w-8 h-8 rounded-lg text-lg ' +
+                    (a === self.playerAvatar ? 'bg-indigo-600 ring-2 ring-indigo-400' : 'bg-arena-card border border-arena-border hover:border-indigo-500') +
+                    ' transition">' + a + '</button>';
+                }).join('')}
+              </div>
+              <p class="text-[11px] text-slate-400">🪙 <b class="text-arena-gold">${this.coins.toLocaleString()}</b> coins</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="qr-room-panel" class="relative overflow-hidden rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/50 via-arena-card to-arena-dark p-5 sm:p-6">
+          <div class="relative flex flex-col lg:flex-row items-center gap-6">
+            <div class="shrink-0 relative">
+              <div class="qr-frame w-[150px] h-[150px] flex items-center justify-center overflow-hidden">
+                <div id="home-qr-mini"></div>
+              </div>
+              <div class="absolute inset-0 rounded-[18px] overflow-hidden pointer-events-none"><div class="scan-line"></div></div>
+              <p class="text-center text-[10px] text-fuchsia-300 font-bold mt-2 tracking-widest">SCAN TO JOIN</p>
+            </div>
+
+            <div class="flex-1 text-center lg:text-left w-full">
+              <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-300 text-[11px] font-bold uppercase tracking-wider">
+                <i class="fa-solid fa-qrcode"></i> QR Party System — All Members Join
+              </div>
+              <h3 class="text-xl sm:text-2xl font-display font-black mt-2">Invite players with a single scan</h3>
+              <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                Host a live room → share QR on screen → friends scan with a phone camera → they land straight in your lobby. No accounts needed.
+              </p>
+
+              <div class="grid sm:grid-cols-2 gap-3 mt-4">
+                <div class="bg-arena-dark/70 border border-arena-border rounded-2xl p-3 text-left">
+                  <p class="text-xs font-bold text-white mb-2"><i class="fa-solid fa-tower-broadcast text-fuchsia-400 mr-1"></i> Host a room</p>
+                  <button onclick="app.createRoom()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white text-sm font-bold shadow-lg transition">
+                    <i class="fa-solid fa-qrcode mr-1"></i> Create Room &amp; Show QR
+                  </button>
+                </div>
+                <div class="bg-arena-dark/70 border border-arena-border rounded-2xl p-3 text-left">
+                  <p class="text-xs font-bold text-white mb-2"><i class="fa-solid fa-right-to-bracket text-emerald-400 mr-1"></i> Join a room</p>
+                  <div class="flex gap-2">
+                    <input id="home-join-code" maxlength="6" placeholder="ABC123" value="${esc(deepCode || '')}" class="flex-1 min-w-0 text-center code-box font-black bg-arena-card border-2 border-arena-border focus:border-fuchsia-500 focus:outline-none rounded-xl py-2 text-white uppercase placeholder:text-slate-600">
+                    <button onclick="app.joinRoomByCode(document.getElementById('home-join-code').value)" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold">Join</button>
+                  </div>
+                  <button onclick="app.openScanner()" class="w-full mt-2 py-2 rounded-xl bg-arena-card border border-arena-border hover:border-fuchsia-500/60 text-xs font-bold text-slate-200">
+                    <i class="fa-solid fa-camera mr-1"></i> Scan QR with Camera
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div>
+            <h3 class="text-xl font-bold font-display">Select Quiz Arena</h3>
+            <p class="text-xs text-slate-400">Pick a category to launch ${this.room ? '• host sets room category' : '• or host a QR room above'}</p>
+          </div>
+          <div class="inline-flex p-1 rounded-xl bg-arena-card border border-arena-border self-stretch sm:self-auto">
+            <button onclick="app.setGameMode('multiplayer')" class="flex-1 px-5 py-2 rounded-lg text-xs font-bold transition ${this.gameMode === 'multiplayer' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">
+              <i class="fa-solid fa-users mr-1"></i> 4-Player Bots
+            </button>
+            <button onclick="app.setGameMode('solo')" class="flex-1 px-5 py-2 rounded-lg text-xs font-bold transition ${this.gameMode === 'solo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">
+              <i class="fa-solid fa-user-ninja mr-1"></i> Solo Blitz
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${CATEGORIES.map(function(cat){
+            const cnt = cat.id === 'mixed' ? 'Mixed 10-pack' : ((QUESTION_BANK[cat.id] || []).length + ' Qs');
+            return `
+            <div onclick="app.selectCategoryAndStart('${cat.id}')" class="group bg-arena-card border border-arena-border hover:border-indigo-500/70 p-5 rounded-2xl cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition">
+                    <i class="fa-solid ${cat.icon} text-lg"></i>
+                  </div>
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-arena-dark border border-arena-border text-slate-300">${cnt}</span>
+                </div>
+                <h4 class="font-bold text-base group-hover:text-indigo-300 transition">${cat.name}</h4>
+                <p class="text-xs text-slate-400 mt-1">${cat.desc}</p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-arena-border/50 flex items-center justify-between text-xs font-bold text-indigo-400">
+                <span>${self.room ? 'Set as Room Category' : 'Enter Showdown'}</span>
+                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+
+    try{
+      const el = document.getElementById('home-qr-mini');
+      if(el && window.QRCode){
+        el.innerHTML = '';
+        new QRCode(el, { text: this.buildJoinUrl('DEMO12'), width:126, height:126, colorDark:'#0a0d1a', colorLight:'#ffffff' });
+      }
+    }catch(e){}
+  },
+
+  selectCategoryAndStart(id){
+    soundManager.playClick();
+    if(this.room && this.room.status === 'lobby'){
+      if(this.room.hostId !== this.clientId){ this.toast('Only host can change category','error'); return; }
+      const r = RoomManager.get(this.room.code);
+      if(r){ r.category = id; RoomManager.save(r); this.room = r; this.showLobby(); this.toast('Room category updated','success'); }
+      return;
+    }
+    this.startGame(id);
+  },
+
+  /* ============================================================
+     QR ROOM SYSTEM
+     ============================================================ */
+  createRoom(){
+    soundManager.playJoin();
+    let code = RoomManager.genCode();
+    let guard = 0;
+    while(RoomManager.get(code) && guard++ < 40) code = RoomManager.genCode();
+    const room = {
+      code: code,
+      joinUrl: this.buildJoinUrl(code),
+      category: 'technical',
+      status: 'lobby',
+      hostId: this.clientId,
+      createdAt: Date.now(),
+      questions: [],
+      players: [{
+        id: this.clientId, name: this.playerName, avatar: this.playerAvatar,
+        score:0, correct:0, maxStreak:0, progress:0, finished:false,
+        isHost:true, isBot:false, joinedVia:'host'
+      }]
+    };
+    RoomManager.save(room);
+    this.room = room;
+    this.roomCode = code;
+    this.showLobby();
+    this.toast('Room ' + code + ' created — show the QR!','success');
+  },
+
+  joinRoomByCode(raw){
+    soundManager.playClick();
+    const code = this.parseCodeInput(raw);
+    if(!code){ this.toast('Enter a valid 6-character code','error'); return; }
+    const r = RoomManager.get(code);
+    if(!r){ this.toast('Room ' + code + ' not found. Check the code.','error'); return; }
+    if(r.status === 'finished'){ this.toast('Room already finished','error'); return; }
+    const already = r.players.some(function(p){ return p.id === app.clientId; });
+    if(r.players.length >= 8 && !already){ this.toast('Room is full (8 max)','error'); return; }
+
+    let me = r.players.filter(function(p){ return p.id === app.clientId; })[0];
+    if(!me){
+      r.players.push({
+        id:this.clientId, name:this.playerName, avatar:this.playerAvatar,
+        score:0, correct:0, maxStreak:0, progress:0, finished:false,
+        isHost:false, isBot:false, joinedVia:'qr'
+      });
+      soundManager.playJoin();
+    }else{
+      me.name = this.playerName; me.avatar = this.playerAvatar;
+    }
+    RoomManager.save(r);
+    this.room = r;
+    this.roomCode = r.code;
+    if(r.status === 'playing') this.enterRoomQuiz(r);
+    else this.showLobby();
+  },
+
+  leaveRoom(){
+    soundManager.playClick();
+    if(!this.room){ this.showHome(); return; }
+    const r = RoomManager.get(this.room.code);
+    if(r){
+      if(r.hostId === this.clientId){
+        RoomManager.remove(r.code);
+        this.toast('Room closed','success');
+      }else{
+        r.players = r.players.filter(function(p){ return p.id !== app.clientId; });
+        RoomManager.save(r);
+        this.toast('Left room','success');
+      }
+    }
+    this.room = null;
+    this.roomCode = null;
+    clearInterval(this.botSimInt);
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    this.showHome();
+  },
+
+  kickPlayer(pid){
+    const r = RoomManager.get(this.room.code);
+    if(!r || r.hostId !== this.clientId) return;
+    r.players = r.players.filter(function(p){ return p.id !== pid; });
+    RoomManager.save(r);
+    this.room = r;
+    this.showLobby();
+  },
+
+  setRoomCategory(id){
+    const r = RoomManager.get(this.room.code);
+    if(!r) return;
+    r.category = id;
+    RoomManager.save(r);
+    this.room = r;
+    this.showLobby();
+  },
+
+  simulateScanJoin(){
+    const r = RoomManager.get(this.room.code);
+    if(!r) return;
+    if(r.players.length >= 8){ this.toast('Room full','error'); return; }
+    const avail = BOT_DEFS.filter(function(b){
+      return !r.players.some(function(p){ return p.name === b.name; });
+    });
+    const b = avail.length ? avail[Math.floor(Math.random()*avail.length)]
+      : {name:'Guest' + Math.floor(Math.random()*900 + 100), avatar: AVATARS[Math.floor(Math.random()*AVATARS.length)], skill:.7};
+    r.players.push({
+      id:'bot_' + Math.random().toString(36).slice(2,9),
+      name:b.name, avatar:b.avatar, skill:b.skill || .75,
+      score:0, correct:0, maxStreak:0, progress:0, finished:false,
+      isHost:false, isBot:true, joinedVia:'qr'
+    });
+    RoomManager.save(r);
+    this.room = r;
+    soundManager.playJoin();
+    this.showLobby();
+    this.toast(b.name + ' scanned & joined!','success');
+  },
+
+  startRoomMatch(){
+    const r = RoomManager.get(this.room.code);
+    if(!r || r.hostId !== this.clientId) return;
+    const qs = getQuestions(r.category, 10);
+    r.questions = qs;
+    r.status = 'playing';
+    r.players.forEach(function(p){
+      p.score = 0; p.correct = 0; p.maxStreak = 0; p.progress = 0; p.finished = false;
+    });
+    RoomManager.save(r);
+    this.room = r;
+    soundManager.playFanfare();
+    this.enterRoomQuiz(r);
+  },
+
+  rematchRoom(){
+    const r = RoomManager.get(this.room.code);
+    if(!r) return;
+    r.status = 'lobby';
+    r.questions = [];
+    r.players.forEach(function(p){
+      p.score = 0; p.correct = 0; p.progress = 0; p.finished = false; p.maxStreak = 0;
+    });
+    RoomManager.save(r);
+    this.room = r;
+    this.showLobby();
+  },
+
+  showLobby(){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    this.view = 'lobby';
+    const r = RoomManager.get(this.roomCode) || this.room;
+    if(!r){ this.room = null; this.roomCode = null; this.showHome(); return; }
+    this.room = r;
+    this.updateNav();
+    const isHost = r.hostId === this.clientId;
+    const cat = CATEGORIES.filter(function(c){ return c.id === r.category; })[0] || CATEGORIES[0];
+    const self = this;
+    const c = document.getElementById('app-container');
+
+    c.innerHTML = `
+      <div class="max-w-5xl mx-auto w-full space-y-5 fade-up">
+        <div class="flex items-center justify-between">
+          <button onclick="app.leaveRoom()" class="text-xs font-bold text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left mr-1"></i> Exit Room</button>
+          <span class="text-[11px] font-black px-3 py-1 rounded-full ${r.status === 'lobby' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}">
+            ● ${r.status.toUpperCase()} • ${r.players.length}/8
+          </span>
+        </div>
+
+        <div class="grid lg:grid-cols-[320px_1fr] gap-5">
+          <div class="bg-arena-card border border-fuchsia-500/30 rounded-3xl p-5 flex flex-col items-center gap-3 neon-glow">
+            <p class="text-[11px] font-black uppercase tracking-widest text-fuchsia-300"><i class="fa-solid fa-qrcode mr-1"></i> Scan to join this room</p>
+            <div class="relative">
+              <div class="qr-frame w-[220px] h-[220px] flex items-center justify-center overflow-hidden"><div id="lobby-qr"></div></div>
+              <div class="absolute inset-0 rounded-[18px] overflow-hidden pointer-events-none"><div class="scan-line"></div></div>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] uppercase font-black tracking-widest text-slate-500">Room Code</p>
+              <p class="text-4xl font-display font-black code-box text-white">${r.code}</p>
+            </div>
+            <div class="flex gap-2 w-full">
+              <button onclick="app.copyText('${r.code}','Room code')" class="flex-1 py-2 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold"><i class="fa-solid fa-copy mr-1"></i>Code</button>
+              <button onclick="app.copyText('${r.joinUrl}','Join link')" class="flex-1 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold"><i class="fa-solid fa-link mr-1"></i>Link</button>
+              <button onclick="app.downloadQR()" class="flex-1 py-2 rounded-xl bg-fuchsia-600/20 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold"><i class="fa-solid fa-download mr-1"></i>QR</button>
+            </div>
+            <p class="text-[11px] text-slate-500 text-center break-all font-mono leading-relaxed">${esc(r.joinUrl)}</p>
+            <p class="text-[11px] text-slate-400 text-center">📸 Open phone camera → point at QR → tap link → you're in!</p>
+          </div>
+
+          <div class="space-y-4">
+            <div class="bg-arena-card border border-arena-border rounded-2xl p-4">
+              <p class="text-[10px] uppercase font-black tracking-widest text-slate-500 mb-2">Match Category ${isHost ? '(tap to change)' : '• host controls'}</p>
+              <div class="flex flex-wrap gap-2">
+                ${CATEGORIES.map(function(x){
+                  const nm = x.name.split('. ')[1] || x.name;
+                  return '<button ' + (isHost ? 'onclick="app.setRoomCategory(\'' + x.id + '\')"' : '') +
+                    ' class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition ' +
+                    (r.category === x.id ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-arena-dark border-arena-border text-slate-400 ' + (isHost ? 'hover:text-white hover:border-indigo-500/50' : 'opacity-70')) +
+                    '">' + nm + '</button>';
+                }).join('')}
+              </div>
+              ${!isHost ? `
+                <div class="mt-3 flex items-center gap-3 bg-arena-dark rounded-xl p-3 border border-arena-border">
+                  <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center animate-pulse"><i class="fa-solid fa-hourglass-half"></i></div>
+                  <div>
+                    <p class="text-sm font-bold">Waiting for host to start…</p>
+                    <p class="text-xs text-slate-400">${cat.name} • 10 questions • 15s each</p>
+                  </div>
+                </div>` : ''}
+            </div>
+
+            <div class="bg-arena-card border border-arena-border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-bold"><i class="fa-solid fa-users text-fuchsia-400 mr-1"></i> Participants
+                  <span class="text-xs bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 rounded-full px-2 py-0.5 ml-1">${r.players.length}</span>
+                </p>
+                <span class="text-[11px] text-slate-500">Live • auto-sync</span>
+              </div>
+              <div id="participants-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${r.players.map(function(p){ return self.playerCardHTML(p); }).join('')}
+                ${r.players.length < 8 ? `
+                  <div class="border border-dashed border-arena-border rounded-xl p-3 flex items-center gap-2.5 opacity-60">
+                    <div class="w-9 h-9 rounded-lg bg-arena-dark flex items-center justify-center text-slate-500"><i class="fa-solid fa-qrcode"></i></div>
+                    <p class="text-[11px] text-slate-500">Waiting for scanners…<br><b>Show QR fullscreen</b></p>
+                  </div>` : ''}
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+              ${isHost ? `
+                <button onclick="app.startRoomMatch()" class="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold shadow-lg flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-play"></i> Start Match (${r.players.length})
+                </button>` : `
+                <button disabled class="flex-1 py-3.5 rounded-xl bg-arena-dark border border-arena-border text-slate-500 font-bold cursor-not-allowed">
+                  <i class="fa-solid fa-hourglass-half animate-pulse mr-1"></i> Waiting for host…
+                </button>`}
+              <button onclick="app.simulateScanJoin()" class="px-5 py-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 font-bold text-sm">
+                <i class="fa-solid fa-user-plus mr-1"></i> Simulate Scan
+              </button>
+              <button onclick="app.leaveRoom()" class="px-5 py-3.5 rounded-xl bg-arena-card border border-arena-border font-bold text-slate-300 text-sm">
+                <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> ${isHost ? 'Close' : 'Leave'}
+              </button>
+            </div>
+
+            <p class="text-[11px] text-slate-500 text-center">
+              ${isHost ? 'You are HOST. Everyone scanning appears above automatically.' : 'Keep this open — match starts automatically.'}
+              Tip: open a 2nd tab → join with the code to test live sync.
+            </p>
+          </div>
+        </div>
+      </div>`;
+
+    try{
+      const el = document.getElementById('lobby-qr');
+      if(el){
+        el.innerHTML = '';
+        if(window.QRCode){
+          new QRCode(el, { text:r.joinUrl, width:196, height:196, colorDark:'#0a0d1a', colorLight:'#ffffff' });
+        }else{
+          el.innerHTML = '<p class="font-black text-2xl text-slate-900">' + r.code + '</p>';
+        }
+      }
+    }catch(e){}
+  },
+
+  playerCardHTML(p){
+    const me = p.id === this.clientId;
+    const isHost = !!p.isHost;
+    const canKick = this.room && this.room.hostId === this.clientId && !me && !isHost;
+    return `
+      <div class="bg-arena-dark border ${isHost ? 'border-fuchsia-500/50' : 'border-arena-border'} rounded-xl p-3 flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-arena-card flex items-center justify-center text-lg shrink-0">${p.avatar || '🙂'}</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-bold truncate">${esc(p.name)} ${me ? '<span class="text-indigo-400">(You)</span>' : ''}</p>
+          <p class="text-[10px] font-bold ${isHost ? 'text-fuchsia-400' : 'text-emerald-400'}">
+            ${isHost ? 'HOST' : ((p.joinedVia || 'qr').toUpperCase() + ' VIA QR')}
+          </p>
+        </div>
+        ${canKick ? '<button onclick="app.kickPlayer(\'' + p.id + '\')" class="text-rose-400 hover:text-rose-300 text-xs px-2"><i class="fa-solid fa-xmark"></i></button>' : ''}
+      </div>`;
+  },
+
+  downloadQR(){
+    try{
+      const img = document.querySelector('#lobby-qr img');
+      const cv = document.querySelector('#lobby-qr canvas');
+      let url = null;
+      if(img && img.src) url = img.src;
+      else if(cv) url = cv.toDataURL('image/png');
+      if(!url){ this.toast('QR not ready','error'); return; }
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'QuizArena-Room-' + (this.room ? this.room.code : 'QR') + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      this.toast('QR image saved','success');
+    }catch(e){ this.toast('Download failed','error'); }
+  },
+
+  /* ============================================================
+     SCANNER
+     ============================================================ */
+  openScanner(){
+    soundManager.playClick();
+    const m = document.getElementById('scanner-modal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+    const status = document.getElementById('scan-status');
+    status.innerText = 'Starting camera...';
+
+    const self = this;
+    const onOk = function(txt){
+      soundManager.playJoin();
+      status.innerText = 'QR found: ' + txt;
+      self.closeScanner(true);
+      const code = self.parseCodeInput(txt);
+      if(code) self.joinRoomByCode(code);
+      else self.toast('Invalid QR content','error');
+    };
+
+    try{
+      if(typeof Html5Qrcode === 'undefined'){
+        status.innerText = 'Scanner library failed to load — paste the link below.';
+        return;
+      }
+      this.html5Qr = new Html5Qrcode('qr-reader');
+      this.html5Qr.start(
+        {facingMode:'environment'},
+        {fps:10, qrbox:{width:240, height:240}},
+        onOk,
+        function(){}
+      ).then(function(){
+        status.innerText = 'Point camera at the host QR code';
+      }).catch(function(){
+        status.innerText = 'Camera blocked — allow permission or paste the link below.';
+      });
+    }catch(e){
+      status.innerText = 'Camera unavailable — paste the link below.';
+    }
+  },
+
+  closeScanner(silent){
+    const m = document.getElementById('scanner-modal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    try{
+      if(this.html5Qr){
+        const h = this.html5Qr;
+        this.html5Qr = null;
+        h.stop().then(function(){
+          try{ h.clear(); }catch(e){}
+          document.getElementById('qr-reader').innerHTML = '';
+        }).catch(function(){
+          document.getElementById('qr-reader').innerHTML = '';
+        });
+      }
+    }catch(e){}
+    if(!silent) soundManager.playClick();
+  },
+
+  manualScanParse(){
+    const v = document.getElementById('manual-scan-input').value;
+    const code = this.parseCodeInput(v);
+    if(!code){ this.toast('Invalid code/link','error'); return; }
+    this.closeScanner(true);
+    this.joinRoomByCode(code);
+  },
+
+  /* ============================================================
+     SYNC
+     ============================================================ */
+  syncRoom(){
+    if(!this.roomCode) return;
+    const r = RoomManager.get(this.roomCode);
+    if(!r){
+      if(this.room){
+        this.toast('Room closed by host','error');
+        this.room = null; this.roomCode = null;
+        clearInterval(this.botSimInt);
+        if(this.quiz) clearInterval(this.quiz.timerInterval);
+        if(this.view !== 'home') this.showHome(); else this.updateNav();
+      }
+      return;
+    }
+    const prev = this.room;
+    this.room = r;
+    this.updateNav();
+
+    if(r.status === 'lobby' && this.view === 'lobby'){
+      const g = document.getElementById('participants-grid');
+      if(g){
+        const self = this;
+        g.innerHTML = r.players.map(function(p){ return self.playerCardHTML(p); }).join('') +
+          (r.players.length < 8 ? '<div class="border border-dashed border-arena-border rounded-xl p-3 flex items-center gap-2.5 opacity-60"><div class="w-9 h-9 rounded-lg bg-arena-dark flex items-center justify-center text-slate-500"><i class="fa-solid fa-qrcode"></i></div><p class="text-[11px] text-slate-500">Waiting for scanners…</p></div>' : '');
+      }
+      if(prev && r.players.length > prev.players.length) soundManager.playJoin();
+    }else if(r.status === 'playing' && this.view === 'lobby'){
+      this.enterRoomQuiz(r);
+    }else if(r.status === 'playing' && (this.view === 'quiz' || this.view === 'results') && this.quiz && this.quiz.mode === 'room'){
+      this.updateRoomLeaderboard();
+    }else if(r.status === 'finished' && this.view !== 'results'){
+      if(this.quiz) clearInterval(this.quiz.timerInterval);
+      clearInterval(this.botSimInt);
+      this.showRoomResults();
+    }
+  },
+
+  /* ============================================================
+     GAME ENGINE — SOLO / BOTS
+     ============================================================ */
+  startGame(cat){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    clearTimeout(this._nx);
+    const qs = getQuestions(cat, 10);
+    let opps = [];
+    if(this.gameMode === 'multiplayer'){
+      opps = shuffle(BOT_DEFS).slice(0,3).map(function(b){
+        return {name:b.name, avatar:b.avatar, skill:b.skill, score:0, correct:0, answered:false, lastCorrect:false};
+      });
+    }
+    this.quiz = {
+      mode: this.gameMode === 'multiplayer' ? 'bots' : 'solo',
+      category: cat,
+      questions: qs,
+      index: 0, score: 0, correct: 0, streak: 0, maxStreak: 0,
+      timeLeft: 15, timerInterval: null, locked: false,
+      lifelines: {fifty:true, freeze:true, double:true},
+      isDouble: false, opponents: opps, log: [], frozen: false
+    };
+    this.renderQuiz();
+  },
+
+  enterRoomQuiz(r){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    clearTimeout(this._nx);
+    this.view = 'quiz';
+    this.quiz = {
+      mode:'room',
+      category: r.category,
+      questions: (r.questions && r.questions.length) ? r.questions : getQuestions(r.category, 10),
+      index:0, score:0, correct:0, streak:0, maxStreak:0,
+      timeLeft:15, timerInterval:null, locked:false,
+      lifelines:{fifty:true, freeze:true, double:true},
+      isDouble:false, opponents:[], log:[], frozen:false
+    };
+    this.renderQuiz();
+    if(r.hostId === this.clientId) this.startBotSim();
+  },
+
+  startBotSim(){
+    clearInterval(this.botSimInt);
+    const self = this;
+    this.botSimInt = setInterval(function(){
+      const r = RoomManager.get(self.roomCode);
+      if(!r || r.status !== 'playing'){ clearInterval(self.botSimInt); return; }
+      let changed = false;
+      const total = (r.questions && r.questions.length) || 10;
+      r.players.forEach(function(p){
+        if(p.isBot && !p.finished){
+          if(Math.random() < 0.72){
+            p.progress = Math.min(total, (p.progress || 0) + 1);
+            changed = true;
+            const skill = p.skill || .75;
+            if(Math.random() < skill){
+              const pts = 100 + Math.floor(Math.random()*120) + (p.progress * 5);
+              p.score = (p.score || 0) + pts;
+              p.correct = (p.correct || 0) + 1;
+            }
+            if(p.progress >= total) p.finished = true;
+          }
+        }
+      });
+      if(changed){
+        const allDone = r.players.every(function(p){ return p.finished; });
+        if(allDone) r.status = 'finished';
+        RoomManager.save(r);
+        self.room = r;
+        if(self.view === 'quiz' || self.view === 'results') self.updateRoomLeaderboard();
+        if(r.status === 'finished'){
+          clearInterval(self.botSimInt);
+          if(self.quiz) clearInterval(self.quiz.timerInterval);
+          if(self.view !== 'results') self.showRoomResults();
+        }
+      }
+    }, 3200);
+  },
+
+  renderQuiz(){
+    this.view = 'quiz';
+    this._resultShown = false;
+    soundManager.playClick();
+    const q = this.quiz;
+    const cat = CATEGORIES.filter(function(c){ return c.id === q.category; })[0] || CATEGORIES[0];
+    const isRoom = q.mode === 'room';
+    const c = document.getElementById('app-container');
+
+    c.innerHTML = `
+      <div class="max-w-6xl mx-auto w-full space-y-4 fade-up">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <button onclick="${isRoom ? 'app.showLobbyConfirm()' : 'app.showHome()'}" class="text-xs font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-arrow-left mr-1"></i> ${isRoom ? 'Lobby' : 'Quit'}
+          </button>
+          <div class="flex items-center gap-2 text-xs font-bold">
+            <span class="px-3 py-1.5 rounded-full bg-indigo-600/20 border border-indigo-500/40 text-indigo-300"><i class="fa-solid ${cat.icon} mr-1"></i>${cat.name}</span>
+            ${isRoom ? '<span class="px-3 py-1.5 rounded-full bg-fuchsia-600/20 border border-fuchsia-500/40 text-fuchsia-300">ROOM ' + this.room.code + '</span>' : ''}
+            <span class="px-3 py-1.5 rounded-full bg-arena-card border border-arena-border">Q <span id="q-num">1</span>/${q.questions.length}</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-bold">
+            <span id="hud-streak" class="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300">🔥 x0</span>
+            <span id="hud-score" class="px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">0 pts</span>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-[1fr_300px] gap-4 items-start">
+          <div class="space-y-4">
+            <div class="bg-arena-card border border-arena-border rounded-2xl p-4">
+              <div class="flex justify-between text-xs font-bold mb-2">
+                <span class="text-slate-400">⏱ Time Left</span>
+                <span id="timer-text" class="text-white">15s</span>
+              </div>
+              <div class="h-3 rounded-full bg-arena-dark overflow-hidden">
+                <div id="timer-bar" class="timer-bar h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style="width:100%"></div>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button id="ll-fifty" onclick="app.useLifeline('fifty')" class="flex-1 py-2 rounded-xl text-[11px] font-bold bg-arena-dark border border-arena-border hover:border-indigo-500">🌓 50:50</button>
+                <button id="ll-freeze" onclick="app.useLifeline('freeze')" class="flex-1 py-2 rounded-xl text-[11px] font-bold bg-arena-dark border border-arena-border hover:border-indigo-500">❄️ Freeze</button>
+                <button id="ll-double" onclick="app.useLifeline('double')" class="flex-1 py-2 rounded-xl text-[11px] font-bold bg-arena-dark border border-arena-border hover:border-indigo-500">✨ 2x Points</button>
+              </div>
+            </div>
+
+            <div id="q-card" class="bg-arena-card border border-arena-border rounded-3xl p-5 sm:p-7 pop-in"></div>
+            <div id="explain-box" class="hidden bg-arena-card border border-indigo-500/30 rounded-2xl p-4"></div>
+          </div>
+
+          <div class="bg-arena-card border border-arena-border rounded-2xl p-4 lg:sticky lg:top-4">
+            <p class="text-sm font-bold mb-3"><i class="fa-solid fa-ranking-star text-arena-gold mr-1"></i> Live Leaderboard</p>
+            <div id="live-leaderboard" class="space-y-2"></div>
+            <p class="text-[11px] text-slate-500 mt-3 text-center">${isRoom ? 'Syncs live from all scanners' : 'Bots answer in real-time'}</p>
+          </div>
+        </div>
+      </div>`;
+
+    this.showQuestion();
+  },
+
+  showLobbyConfirm(){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    clearTimeout(this._nx);
+    this.showLobby();
+  },
+
+  showQuestion(){
+    const q = this.quiz;
+    if(!q) return;
+    const Q = q.questions[q.index];
+    if(!Q) return;
+    q.locked = false;
+    q.timeLeft = 15;
+    q.frozen = false;
+
+    const qn = document.getElementById('q-num');
+    if(qn) qn.innerText = (q.index + 1);
+    const hs = document.getElementById('hud-score');
+    if(hs) hs.innerText = q.score + ' pts';
+    const hk = document.getElementById('hud-streak');
+    if(hk) hk.innerText = '🔥 x' + q.streak;
+
+    const eb = document.getElementById('explain-box');
+    if(eb){ eb.classList.add('hidden'); eb.innerHTML = ''; }
+
+    const card = document.getElementById('q-card');
+    if(card) card.classList.remove('shake');
+
+    if(card){
+      card.innerHTML = `
+        <span class="text-[11px] font-black uppercase tracking-widest text-indigo-400">${esc(Q.sub || Q.category)}</span>
+        <h2 class="text-lg sm:text-2xl font-bold mt-2 leading-snug">${esc(Q.question)}</h2>
+        <div class="grid gap-3 mt-5">
+          ${Q.options.map(function(o,i){
+            const L = ['A','B','C','D'][i];
+            return `<button id="opt-${i}" onclick="app.selectAnswer(${i})" class="option-btn text-left bg-arena-dark border-2 border-arena-border hover:border-indigo-500 rounded-2xl p-4 flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 font-black text-sm flex items-center justify-center shrink-0">${L}</span>
+              <span class="text-sm sm:text-base font-semibold">${esc(o)}</span>
+            </button>`;
+          }).join('')}
+        </div>
+        <p class="text-[11px] text-slate-500 mt-4 text-center">
+          Streak bonus: +20 × streak • Speed bonus: +10 × seconds left ${q.isDouble ? '• <b class="text-fuchsia-300">2X ACTIVE</b>' : ''}
+        </p>`;
+    }
+
+    this.updateLifelineUI();
+    this.updateLeaderboard();
+    this.startTimer();
+    if(q.mode === 'bots') this.simulateBots();
+  },
+
+  startTimer(){
+    const q = this.quiz;
+    if(!q) return;
+    clearInterval(q.timerInterval);
+    const bar = document.getElementById('timer-bar');
+    const txt = document.getElementById('timer-text');
+    if(bar){
+      bar.style.width = '100%';
+      bar.className = 'timer-bar h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400';
+    }
+    if(txt) txt.innerText = '15s';
+
+    const self = this;
+    const tick = function(){
+      if(self.quiz !== q) return;
+      if(q.frozen || q.locked) return;
+      q.timeLeft--;
+      const pct = Math.max(0, (q.timeLeft / 15) * 100);
+      if(bar) bar.style.width = pct + '%';
+      if(txt) txt.innerText = Math.max(0, q.timeLeft) + 's';
+      if(bar){
+        if(q.timeLeft <= 5){
+          bar.className = 'timer-bar h-full rounded-full bg-gradient-to-r from-rose-600 to-red-400 animate-pulse';
+          soundManager.playTick();
+        }else if(q.timeLeft <= 10){
+          bar.className = 'timer-bar h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400';
+        }
+      }
+      if(q.timeLeft <= 0){
+        clearInterval(q.timerInterval);
+        self.selectAnswer(-1, true);
+      }
+    };
+    q.timerInterval = setInterval(tick, 1000);
+  },
+
+  simulateBots(){
+    const q = this.quiz;
+    const self = this;
+    q.opponents.forEach(function(b){
+      b.answered = false;
+      b.lastCorrect = false;
+      const delay = 2500 + Math.random() * 9000;
+      setTimeout(function(){
+        if(self.quiz !== q) return;
+        if(b.answered) return;
+        const correct = Math.random() < b.skill;
+        const tLeft = Math.max(1, q.timeLeft - Math.floor(Math.random() * 4));
+        if(correct){
+          b.score += 100 + tLeft * 8 + Math.floor(Math.random() * 40);
+          b.correct++;
+        }
+        b.answered = true;
+        b.lastCorrect = correct;
+        if(self.view === 'quiz') self.updateLeaderboard();
+      }, delay);
+    });
+  },
+
+  updateLeaderboard(){
+    if(!this.quiz) return;
+    if(this.quiz.mode === 'room'){ this.updateRoomLeaderboard(); return; }
+    const q = this.quiz;
+    const rows = [{name:this.playerName, avatar:this.playerAvatar, score:q.score, me:true, ans:true, ok:true}]
+      .concat(q.opponents.map(function(b){
+        return {name:b.name, avatar:b.avatar, score:b.score, me:false, ans:b.answered, ok:b.lastCorrect};
+      }));
+    rows.sort(function(a,b){ return b.score - a.score; });
+    const el = document.getElementById('live-leaderboard');
+    if(!el) return;
+    const self = this;
+    el.innerHTML = rows.map(function(r,i){
+      return `<div class="flex items-center gap-2.5 p-2.5 rounded-xl ${r.me ? 'bg-indigo-600/15 border border-indigo-500/40' : 'bg-arena-dark border border-arena-border'}">
+        <span class="text-sm font-black w-6 text-center ${i === 0 ? 'text-arena-gold' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500'}">${i+1}</span>
+        <span class="text-xl">${r.avatar}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold truncate">${esc(r.name)} ${r.me ? '(You)' : ''}</p>
+          <p class="text-[10px] text-slate-500">${r.me ? ('🔥 ' + q.score + ' pts') : (r.ans ? (r.ok ? '✅ answered' : '❌ answered') : '⌛ thinking…')}</p>
+        </div>
+        <span class="text-xs font-black text-emerald-300">${r.score}</span>
+      </div>`;
+    }).join('');
+  },
+
+  updateRoomLeaderboard(){
+    const el = document.getElementById('live-leaderboard');
+    if(!el) return;
+    const r = RoomManager.get(this.roomCode) || this.room;
+    if(!r) return;
+    this.room = r;
+    const total = (r.questions && r.questions.length) || 10;
+    const sorted = r.players.slice().sort(function(a,b){ return (b.score||0) - (a.score||0); });
+    el.innerHTML = sorted.map(function(p,i){
+      const me = p.id === app.clientId;
+      return `<div class="flex items-center gap-2.5 p-2.5 rounded-xl ${me ? 'bg-indigo-600/15 border border-indigo-500/40' : 'bg-arena-dark border border-arena-border'}">
+        <span class="text-sm font-black w-6 text-center ${i === 0 ? 'text-arena-gold' : 'text-slate-500'}">${i+1}</span>
+        <span class="text-xl">${p.avatar || '🙂'}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold truncate">${esc(p.name)} ${me ? '(You)' : ''} ${p.isBot ? '🤖' : ''}</p>
+          <p class="text-[10px] text-slate-500">Q ${Math.min((p.progress || 0) + 1, total)}/${total} ${p.finished ? '• ✅ done' : ''}</p>
+        </div>
+        <span class="text-xs font-black text-emerald-300">${p.score || 0}</span>
+      </div>`;
+    }).join('');
+  },
+
+  useLifeline(t){
+    const q = this.quiz;
+    if(!q || q.locked) return;
+    if(t === 'fifty' && q.lifelines.fifty){
+      q.lifelines.fifty = false;
+      const Q = q.questions[q.index];
+      let wrong = [0,1,2,3].filter(function(i){ return i !== Q.answer; });
+      wrong = shuffle(wrong).slice(0,2);
+      wrong.forEach(function(i){
+        const b = document.getElementById('opt-' + i);
+        if(b){ b.disabled = true; b.classList.add('opt-dim'); }
+      });
+      soundManager.playClick();
+      this.updateLifelineUI();
+      this.toast('50:50 used!');
+    }else if(t === 'freeze' && q.lifelines.freeze){
+      q.lifelines.freeze = false;
+      q.frozen = true;
+      soundManager.playClick();
+      this.updateLifelineUI();
+      this.toast('❄️ Timer frozen for 5s!');
+      setTimeout(function(){ if(q) q.frozen = false; }, 5000);
+    }else if(t === 'double' && q.lifelines.double){
+      q.lifelines.double = false;
+      q.isDouble = true;
+      soundManager.playClick();
+      this.updateLifelineUI();
+      this.toast('✨ 2x points on your next correct answer!');
+    }
+  },
+
+  updateLifelineUI(){
+    const q = this.quiz;
+    if(!q) return;
+    const f = document.getElementById('ll-fifty');
+    const fr = document.getElementById('ll-freeze');
+    const d = document.getElementById('ll-double');
+    if(f){ f.disabled = !q.lifelines.fifty; f.classList.toggle('opacity-40', !q.lifelines.fifty); }
+    if(fr){ fr.disabled = !q.lifelines.freeze; fr.classList.toggle('opacity-40', !q.lifelines.freeze); }
+    if(d){
+      d.disabled = (!q.lifelines.double || q.isDouble);
+      d.classList.toggle('opacity-40', !q.lifelines.double && !q.isDouble);
+      d.innerText = q.isDouble ? '✨ 2x ACTIVE' : '✨ 2x Points';
+    }
+  },
+
+  selectAnswer(i, timeout){
+    const q = this.quiz;
+    if(!q || q.locked) return;
+    q.locked = true;
+    clearInterval(q.timerInterval);
+    clearTimeout(this._nx);
+
+    const Q = q.questions[q.index];
+    const correctIdx = Q.answer;
+    const isCorrect = (i === correctIdx);
+
+    for(let k=0;k<4;k++){
+      const b = document.getElementById('opt-' + k);
+      if(b) b.disabled = true;
+    }
+    const cb = document.getElementById('opt-' + correctIdx);
+    if(cb) cb.classList.add('opt-correct');
+
+    if(!isCorrect && i >= 0){
+      const wb = document.getElementById('opt-' + i);
+      if(wb){ wb.classList.add('opt-wrong'); wb.classList.add('shake'); }
+      const card = document.getElementById('q-card');
+      if(card) card.classList.add('shake');
+      soundManager.playWrong();
+    }else if(isCorrect){
+      soundManager.playCorrect();
+    }else{
+      soundManager.playWrong();
+    }
+
+    let gained = 0;
+    if(isCorrect){
+      gained = 100 + Math.max(0, q.timeLeft) * 10 + q.streak * 20;
+      if(q.isDouble){ gained *= 2; q.isDouble = false; }
+      q.score += gained;
+      q.correct++;
+      q.streak++;
+      q.maxStreak = Math.max(q.maxStreak, q.streak);
+      if(q.streak >= 3) soundManager.playFanfare();
+    }else{
+      q.streak = 0;
+    }
+
+    q.log.push({q:Q.question, pick:i, correct:correctIdx, ok:isCorrect});
+
+    const hs = document.getElementById('hud-score');
+    if(hs) hs.innerText = q.score + ' pts';
+    const hk = document.getElementById('hud-streak');
+    if(hk) hk.innerText = '🔥 x' + q.streak;
+
+    const eb = document.getElementById('explain-box');
+    const last = (q.index + 1) >= q.questions.length;
+    if(eb){
+      eb.classList.remove('hidden');
+      eb.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl ${isCorrect ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'} flex items-center justify-center text-lg shrink-0">${isCorrect ? '✅' : '❌'}</div>
+          <div class="flex-1">
+            <p class="font-bold text-sm ${isCorrect ? 'text-emerald-300' : 'text-rose-300'}">
+              ${timeout ? '⏰ Time up!' : (isCorrect ? ('Correct! +' + gained + ' pts') : ('Wrong! Correct answer: ' + esc(Q.options[correctIdx])))}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">💡 ${esc(Q.explanation || '')}</p>
+            <button onclick="app.nextQuestion()" class="mt-3 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">
+              ${last ? 'Finish' : 'Next →'}
+            </button>
+          </div>
+        </div>`;
+    }
+
+    if(q.mode === 'room') this.pushRoomProgress();
+    else this.updateLeaderboard();
+
+    const self = this;
+    this._nx = setTimeout(function(){ self.nextQuestion(); }, 2800);
+  },
+
+  pushRoomProgress(){
+    const r = RoomManager.get(this.roomCode);
+    if(!r) return;
+    const me = r.players.filter(function(p){ return p.id === app.clientId; })[0];
+    if(!me) return;
+    me.score = this.quiz.score;
+    me.correct = this.quiz.correct;
+    me.maxStreak = this.quiz.maxStreak;
+    me.progress = this.quiz.index + 1;
+    if(me.progress >= this.quiz.questions.length) me.finished = true;
+    RoomManager.save(r);
+    this.room = r;
+    this.updateRoomLeaderboard();
+  },
+
+  nextQuestion(){
+    clearTimeout(this._nx);
+    const q = this.quiz;
+    if(!q) return;
+    q.index++;
+    if(q.index >= q.questions.length) this.finishQuiz();
+    else this.showQuestion();
+  },
+
+  finishQuiz(){
+    const q = this.quiz;
+    if(!q) return;
+    clearInterval(q.timerInterval);
+    clearTimeout(this._nx);
+
+    if(q.mode === 'room'){
+      const r = RoomManager.get(this.roomCode);
+      if(r){
+        const me = r.players.filter(function(p){ return p.id === app.clientId; })[0];
+        if(me){
+          me.score = q.score; me.correct = q.correct;
+          me.maxStreak = q.maxStreak;
+          me.progress = q.questions.length;
+          me.finished = true;
+        }
+        if(r.players.every(function(p){ return p.finished; })) r.status = 'finished';
+        RoomManager.save(r);
+        this.room = r;
+        if(r.status === 'finished') this.showRoomResults();
+        else{ this.view = 'results'; this.showRoomWaiting(); }
+      }else{
+        this.showHome();
+      }
+      return;
+    }
+
+    /* ---- solo / bots results ---- */
+    const total = q.questions.length;
+    const topBot = q.opponents.length ? Math.max.apply(null, q.opponents.map(function(o){ return o.score; })) : 0;
+    const won = q.mode === 'solo' ? (q.correct >= Math.ceil(total * 0.6)) : (q.score >= topBot);
+    const earn = Math.floor(q.score / 10) + q.correct * 5 + (won ? 100 : 10);
+    this.coins += earn;
+    this.saveProfile();
+    const nc = document.getElementById('nav-player-coins');
+    if(nc) nc.innerText = this.coins.toLocaleString();
+
+    if(won){
+      soundManager.playFanfare();
+      try{
+        confetti({particleCount:160, spread:75, origin:{y:.6}});
+        setTimeout(function(){ confetti({particleCount:80, angle:60, spread:60, origin:{x:0}}); }, 300);
+        setTimeout(function(){ confetti({particleCount:80, angle:120, spread:60, origin:{x:1}}); }, 450);
+      }catch(e){}
+    }
+
+    this.view = 'results';
+
+    const rows = [{name:this.playerName, avatar:this.playerAvatar, score:q.score, correct:q.correct, me:true}]
+      .concat(q.opponents.map(function(o){
+        return {name:o.name, avatar:o.avatar, score:o.score, correct:o.correct || 0, me:false};
+      }));
+    rows.sort(function(a,b){ return b.score - a.score; });
+    const rank = rows.findIndex(function(r){ return r.me; }) + 1;
+    const self = this;
+
+    const c = document.getElementById('app-container');
+    c.innerHTML = `
+      <div class="max-w-3xl mx-auto w-full space-y-5 fade-up text-center">
+        <div class="bg-arena-card border border-arena-border rounded-3xl p-8">
+          <div class="text-6xl mb-3">${rank === 1 ? '🏆' : '🎮'}</div>
+          <h2 class="text-3xl font-display font-black">${rank === 1 ? 'Victory!' : 'Match Complete!'}</h2>
+          <p class="text-slate-400 text-sm mt-1">You placed <b class="text-white">#${rank}</b> of ${rows.length} • +${earn} coins</p>
+          <div class="grid grid-cols-3 gap-3 mt-5 max-w-md mx-auto">
+            <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-emerald-300">${q.score}</p><p class="text-[11px] text-slate-500 font-bold">SCORE</p></div>
+            <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-indigo-300">${q.correct}/${total}</p><p class="text-[11px] text-slate-500 font-bold">CORRECT</p></div>
+            <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-orange-300">x${q.maxStreak}</p><p class="text-[11px] text-slate-500 font-bold">STREAK</p></div>
+          </div>
+        </div>
+
+        <div class="bg-arena-card border border-arena-border rounded-2xl p-4 text-left">
+          <p class="font-bold text-sm mb-3">🏁 Final Standings</p>
+          <div class="space-y-2">
+            ${rows.map(function(r,i){
+              return `<div class="flex items-center gap-3 p-3 rounded-xl ${r.me ? 'bg-indigo-600/15 border border-indigo-500/40' : 'bg-arena-dark border border-arena-border'}">
+                <span class="font-black ${i === 0 ? 'text-arena-gold text-lg' : 'text-slate-500'}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1)}</span>
+                <span class="text-2xl">${r.avatar}</span>
+                <div class="flex-1"><p class="font-bold text-sm">${esc(r.name)} ${r.me ? '(You)' : ''}</p><p class="text-[11px] text-slate-500">${r.correct} correct</p></div>
+                <span class="font-black text-emerald-300">${r.score}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="bg-arena-card border border-arena-border rounded-2xl p-4 text-left">
+          <p class="font-bold text-sm mb-3">📝 Answer Review</p>
+          <div class="space-y-2 max-h-56 overflow-y-auto">
+            ${q.log.map(function(l,i){
+              const qq = q.questions[i];
+              return `<div class="text-xs p-2.5 rounded-xl ${l.ok ? 'bg-emerald-950/40 border border-emerald-500/20' : 'bg-rose-950/40 border border-rose-500/20'}">
+                <p class="font-bold">${i+1}. ${esc(l.q)}</p>
+                <p class="text-slate-400 mt-1">${l.ok ? '✅' : '❌'} You: ${l.pick >= 0 ? esc(qq.options[l.pick]) : 'Timeout'} • Correct: ${esc(qq.options[l.correct])}</p>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button onclick="app.startGame('${q.category}')" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 font-bold">🔁 Play Again</button>
+          <button onclick="app.showHome()" class="flex-1 py-3 rounded-xl bg-arena-card border border-arena-border font-bold">🏠 Home</button>
+          <button onclick="app.createRoom()" class="flex-1 py-3 rounded-xl bg-fuchsia-600/20 border border-fuchsia-500/40 text-fuchsia-200 font-bold"><i class="fa-solid fa-qrcode mr-1"></i> QR Room</button>
+        </div>
+      </div>`;
+    window.scrollTo(0,0);
+  },
+
+  showRoomWaiting(){
+    const q = this.quiz;
+    const c = document.getElementById('app-container');
+    c.innerHTML = `
+      <div class="max-w-lg mx-auto text-center space-y-5 fade-up">
+        <div class="bg-arena-card border border-emerald-500/30 rounded-3xl p-8">
+          <div class="text-5xl animate-bounce">⏳</div>
+          <h2 class="text-2xl font-display font-black mt-3">You Finished!</h2>
+          <p class="text-sm text-slate-400">Score <b class="text-emerald-300">${q.score}</b> • ${q.correct}/${q.questions.length} correct • Waiting for other scanners…</p>
+          <div class="mt-4 bg-arena-dark rounded-2xl p-3 border border-arena-border">
+            <div id="live-leaderboard" class="space-y-2 text-left"></div>
+          </div>
+        </div>
+        <button onclick="app.showRoomResults(true)" class="px-5 py-2.5 rounded-xl bg-arena-dark border border-arena-border text-xs font-bold">View Live Standings</button>
+      </div>`;
+    this.updateRoomLeaderboard();
+  },
+
+  showRoomResults(preview){
+    if(this.quiz) clearInterval(this.quiz.timerInterval);
+    clearInterval(this.botSimInt);
+    this.view = 'results';
+    this._resultShown = true;
+
+    const r = RoomManager.get(this.roomCode) || this.room;
+    if(!r){ this.showHome(); return; }
+
+    const sorted = r.players.slice().sort(function(a,b){ return (b.score||0) - (a.score||0); });
+    const me = sorted.filter(function(p){ return p.id === app.clientId; })[0];
+    const rank = sorted.findIndex(function(p){ return p.id === app.clientId; }) + 1;
+    const isHost = r.hostId === this.clientId;
+
+    if(!preview && r.status === 'finished' && rank === 1 && me && !this._rewardedRoom){
+      this._rewardedRoom = r.code;
+      this.coins += 150;
+      this.saveProfile();
+      const nc = document.getElementById('nav-player-coins');
+      if(nc) nc.innerText = this.coins.toLocaleString();
+      soundManager.playFanfare();
+      try{ confetti({particleCount:180, spread:80}); }catch(e){}
+    }
+    if(r.status !== 'finished') this._rewardedRoom = null;
+
+    const c = document.getElementById('app-container');
+    c.innerHTML = `
+      <div class="max-w-3xl mx-auto w-full space-y-5 fade-up text-center">
+        <div class="bg-arena-card border ${r.status === 'finished' ? 'border-amber-500/40' : 'border-arena-border'} rounded-3xl p-8">
+          <div class="text-6xl">${rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎮'}</div>
+          <h2 class="text-3xl font-display font-black mt-2">${r.status === 'finished' ? 'Room Results' : 'Live Standings'}</h2>
+          <p class="text-sm text-slate-400">Room <b class="text-white tracking-widest">${r.code}</b> • You ranked <b class="text-white">#${rank}</b> of ${sorted.length}</p>
+          ${me ? `
+            <div class="grid grid-cols-3 gap-3 mt-5 max-w-md mx-auto">
+              <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-emerald-300">${me.score || 0}</p><p class="text-[11px] text-slate-500 font-bold">SCORE</p></div>
+              <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-indigo-300">${me.correct || 0}</p><p class="text-[11px] text-slate-500 font-bold">CORRECT</p></div>
+              <div class="bg-arena-dark rounded-2xl p-3 border border-arena-border"><p class="text-2xl font-black text-orange-300">x${me.maxStreak || 0}</p><p class="text-[11px] text-slate-500 font-bold">STREAK</p></div>
+            </div>` : ''}
+        </div>
+
+        <div class="bg-arena-card border border-arena-border rounded-2xl p-4 text-left">
+          <p class="font-bold text-sm mb-3">🏁 ${r.status === 'finished' ? 'Final Leaderboard' : 'Updating live…'}</p>
+          <div class="space-y-2">
+            ${sorted.map(function(p,i){
+              return `<div class="flex items-center gap-3 p-3 rounded-xl ${p.id === app.clientId ? 'bg-indigo-600/15 border border-indigo-500/40' : 'bg-arena-dark border border-arena-border'}">
+                <span class="font-black w-8 text-center ${i === 0 ? 'text-arena-gold text-lg' : 'text-slate-500'}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1)}</span>
+                <span class="text-2xl">${p.avatar || '🙂'}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-bold text-sm truncate">${esc(p.name)} ${p.id === app.clientId ? '(You)' : ''} ${p.isBot ? '🤖' : ''}</p>
+                  <p class="text-[11px] text-slate-500">${p.correct || 0} correct • ${p.finished ? '✅ done' : '⏳ playing'} • via ${(p.joinedVia || 'qr').toUpperCase()}</p>
+                </div>
+                <span class="font-black text-emerald-300">${p.score || 0}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          ${(isHost && r.status === 'finished') ? '<button onclick="app.rematchRoom()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-bold">🔁 Back to Lobby (Rematch)</button>' : ''}
+          ${r.status !== 'finished' ? '<button onclick="app.showRoomResults(true)" class="flex-1 py-3 rounded-xl bg-arena-card border border-arena-border font-bold">🔄 Refresh</button>' : ''}
+          <button onclick="app.showLobby()" class="flex-1 py-3 rounded-xl bg-arena-card border border-arena-border font-bold">📷 Room &amp; QR</button>
+          <button onclick="app.leaveRoom()" class="flex-1 py-3 rounded-xl bg-fuchsia-600/20 border border-fuchsia-500/40 font-bold">🏠 Leave</button>
+        </div>
+        ${r.status !== 'finished' ? '<p class="text-[11px] text-slate-500">Waiting for all members to finish — results finalize automatically.</p>' : ''}
+      </div>`;
+    window.scrollTo(0,0);
+  },
+
+  /* ============================================================
+     QUESTION BANK EXPLORER
+     ============================================================ */
+  openBank(){
+    soundManager.playClick();
+    const m = document.getElementById('bank-modal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+    this.renderBankChips();
+    this.renderBankList();
+  },
+  closeBank(){
+    const m = document.getElementById('bank-modal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    soundManager.playClick();
+  },
+  renderBankChips(){
+    const el = document.getElementById('bank-chips');
+    if(!el) return;
+    const self = this;
+    el.innerHTML = CATEGORIES.filter(function(c){ return c.id !== 'mixed'; }).map(function(c){
+      return '<button onclick="app.bankFilter=\'' + c.id + '\';app.renderBankChips();app.renderBankList()" class="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold border ' +
+        (self.bankFilter === c.id ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-arena-dark text-slate-400 border-arena-border') +
+        '">' + c.name + '</button>';
+    }).join('');
+  },
+  renderBankList(){
+    const el = document.getElementById('bank-list');
+    if(!el) return;
+    const list = QUESTION_BANK[this.bankFilter] || [];
+    if(!list.length){
+      el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">No questions in this arena yet.</p>';
+      return;
+    }
+    el.innerHTML = list.map(function(q,i){
+      return `<div class="bg-arena-dark border border-arena-border rounded-xl p-4">
+        <div class="flex items-start gap-3">
+          <span class="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 text-xs font-black flex items-center justify-center shrink-0">${i+1}</span>
+          <div class="flex-1 min-w-0">
+            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-400">${esc(q.sub || q.category)}</span>
+            <p class="font-semibold text-sm mt-1">${esc(q.question)}</p>
+            <div class="grid grid-cols-2 gap-1.5 mt-2">
+              ${q.options.map(function(o,oi){
+                return `<div class="text-[11px] px-2 py-1.5 rounded-lg border ${oi === q.answer ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-200' : 'bg-arena-card border-arena-border text-slate-400'}">
+                  <b>${['A','B','C','D'][oi]}.</b> ${esc(o)}
+                </div>`;
+              }).join('')}
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2">💡 ${esc(q.explanation || '')}</p>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+};
+
+document.addEventListener('DOMContentLoaded', function(){ app.init(); });
+</script>
+</body>
+</html>
